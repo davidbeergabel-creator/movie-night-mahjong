@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Movie Night Mahjong</title>
+<meta name="description" content="A relaxing mahjong solitaire with big, clear tiles and a movie night theme. No timers. Chapter 1: Saturday at the Drive-In.">
+<meta name="theme-color" content="#121a3a">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Bungee&display=swap">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="app">
+
+  <section id="hub" class="screen hub" aria-labelledby="hub-title">
+    <div class="hub-inner">
+      <header class="marquee">
+        <div class="marquee-frame">
+          <h1 id="hub-title" class="marquee-board">
+            <span class="marquee-small">Movie Night</span>
+            <span class="marquee-big">Mahjong</span>
+          </h1>
+        </div>
+        <p class="chapter-line">Chapter 1 · Saturday at the Drive-In</p>
+      </header>
+
+      <div id="chapter-done" class="banner" hidden>
+        <strong>You finished Chapter 1.</strong>
+        <span>Next up: <span id="next-chapter"></span>. Coming soon.</span>
+      </div>
+
+      <button id="cta" class="btn btn-primary btn-xl" type="button">Start the show</button>
+
+      <section class="program-section" aria-labelledby="program-title">
+        <h2 id="program-title" class="section-label">Tonight’s program</h2>
+        <ol id="program" class="program"></ol>
+      </section>
+
+      <nav class="hub-actions" aria-label="More">
+        <button id="open-album" class="btn btn-ghost" type="button">Movie Night album <span id="album-count" class="count"></span></button>
+        <button id="open-howto" class="btn btn-ghost" type="button">How to play</button>
+        <button id="open-settings" class="btn btn-ghost" type="button">Settings</button>
+      </nav>
+
+      <p class="promise">No timers. Play at your own pace.</p>
+    </div>
+  </section>
+
+  <section id="game" class="screen game" aria-labelledby="board-name" hidden>
+    <header class="game-bar">
+      <button id="back" class="btn btn-small" type="button" aria-label="Back to the program"><span class="back-icon"></span>Program</button>
+      <div class="game-title">
+        <span class="game-meta"><span id="board-label">Board 1 of 6</span> · <span id="tiles-left" aria-live="polite">16 tiles left</span></span>
+        <strong id="board-name">Opening Night</strong>
+      </div>
+    </header>
+    <div class="progress" aria-hidden="true"><i id="progress-bar"></i></div>
+    <div id="board-wrap" class="board-wrap">
+      <div id="board" class="board" role="group" aria-label="Tiles"></div>
+    </div>
+    <nav class="toolbar" aria-label="Game tools">
+      <button id="undo" class="tool" type="button"><span data-icon="undo"></span>Undo</button>
+      <button id="hint" class="tool tool-hint" type="button"><span data-icon="hint"></span>Hint</button>
+      <button id="shuffle" class="tool" type="button"><span data-icon="shuffle"></span>Shuffle</button>
+      <button id="game-settings" class="tool" type="button"><span data-icon="settings"></span>Settings</button>
+    </nav>
+  </section>
+
+  <section id="album" class="screen album-screen" aria-labelledby="album-title" hidden>
+    <header class="page-bar">
+      <button id="album-back" class="btn btn-small" type="button" aria-label="Back to the program"><span class="back-icon"></span>Program</button>
+      <h1 id="album-title">Movie Night album</h1>
+    </header>
+    <div class="album-scroll">
+      <div class="album-inner">
+        <p class="album-intro">Clear a board to collect its card. Every card asks you something from the movies.</p>
+        <div id="album-grid" class="album-grid"></div>
+      </div>
+    </div>
+  </section>
+
+  <div id="overlay" class="overlay" hidden>
+    <div id="sheet" class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title"></div>
+  </div>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+</div>
+
+<script src="js/content.js"></script>
+<script src="js/engine.js"></script>
+<script src="js/art.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
