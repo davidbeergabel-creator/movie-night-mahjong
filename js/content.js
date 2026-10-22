@@ -17,7 +17,19 @@
     reel: 'Film reel',
     glasses: '3D glasses',
     sign: 'Arrow sign',
-    clapper: 'Clapperboard'
+    clapper: 'Clapperboard',
+    jukebox: 'Jukebox',
+    record: 'Record',
+    burger: 'Burger',
+    guitar: 'Guitar',
+    mic: 'Microphone',
+    skate: 'Roller skate',
+    pie: 'Cherry pie',
+    mug: 'Coffee',
+    phone: 'Telephone',
+    cone: 'Ice cream cone',
+    sax: 'Saxophone',
+    note: 'Music note'
   };
 
   var DRIVE_IN = {
@@ -109,7 +121,101 @@
     ]
   };
 
-  var CHAPTERS = [DRIVE_IN];
+  var DINER = {
+    id: 'diner',
+    kicker: 'Chapter 2',
+    short: 'Diner',
+    title: 'Rock ’n’ Roll Diner',
+    blurb: 'Jukebox hits, burgers and one last dance before closing time.',
+    mode: 'classic',
+    unlockAfter: 'drive-in',
+    boards: [
+      {
+        name: 'Booth for Two',
+        blocks: [[0, 0, 6, 3, 0], [1, 1, 2, 2, 1], [7, 1, 2, 2, 1]],
+        faces: ['jukebox', 'burger', 'record', 'phone'],
+        cardFace: 'jukebox',
+        cardColor: 'violet',
+        trivia: {
+          q: 'In the TV show Happy Days (1974–1984), what was the name of the gang’s hangout?',
+          options: ['Arnold’s', 'Mel’s Diner', 'The Max', 'Monk’s Café'],
+          answer: 0,
+          fact: 'At Arnold’s, Fonzie could get the jukebox playing with one tap of his fist.'
+        }
+      },
+      {
+        name: 'Counter Stools',
+        blocks: [[0, 0, 8, 2, 0], [2, 1, 6, 1, 1], [4, 1, 4, 1, 2],
+          [1, 5, 1, 1, 0], [5, 5, 1, 1, 0], [9, 5, 1, 1, 0], [13, 5, 1, 1, 0],
+          [1, 5, 1, 1, 1], [5, 5, 1, 1, 1], [9, 5, 1, 1, 1], [13, 5, 1, 1, 1]],
+        faces: ['jukebox', 'burger', 'record', 'phone', 'cone', 'sax'],
+        cardFace: 'record',
+        cardColor: 'bulb',
+        trivia: {
+          q: 'Singles on a 1950s jukebox played at which speed?',
+          options: ['33⅓ rpm', '45 rpm', '78 rpm', '16 rpm'],
+          answer: 1,
+          fact: 'RCA Victor brought out the 7-inch 45 rpm single in 1949, and jukeboxes soon switched to it.'
+        }
+      },
+      {
+        name: 'Jukebox Corner',
+        blocks: [[2, 0, 5, 1, 0], [0, 2, 7, 3, 0], [2, 3, 5, 2, 1]],
+        faces: ['jukebox', 'burger', 'record', 'phone', 'cone', 'sax', 'skate', 'mug'],
+        cardFace: 'burger',
+        cardColor: 'mint',
+        trivia: {
+          q: 'In American Graffiti (1973), the teenagers meet at which drive-in restaurant?',
+          options: ['Mel’s Drive-In', 'Arnold’s', 'Frosty Palace', 'The Peach Pit'],
+          answer: 0,
+          fact: 'The whole movie takes place over one night in the summer of 1962.'
+        }
+      },
+      {
+        name: 'Malt Shop',
+        blocks: [[0, 0, 8, 1, 0], [1, 2, 7, 1, 0], [2, 4, 6, 1, 0], [3, 6, 5, 1, 0],
+          [1, 1, 7, 1, 1], [2, 3, 6, 1, 1], [3, 5, 5, 1, 1]],
+        faces: ['jukebox', 'burger', 'record', 'phone', 'cone', 'sax', 'skate', 'mug', 'guitar', 'mic'],
+        cardFace: 'pie',
+        cardColor: 'dusk',
+        trivia: {
+          q: 'On a diner menu, what does “à la mode” mean?',
+          options: ['With a scoop of ice cream', 'With whipped cream', 'Served warm', 'With a slice of cheese'],
+          answer: 0,
+          fact: 'Pie à la mode comes with ice cream on top. In parts of New England, apple pie is sometimes served with a slice of cheddar instead.'
+        }
+      },
+      {
+        name: 'Sock Hop',
+        blocks: [[0, 0, 8, 4, 0], [1, 1, 2, 3, 1], [11, 1, 2, 3, 1], [6, 2, 2, 2, 1], [2, 2, 1, 2, 2], [12, 2, 1, 2, 2]],
+        faces: ['jukebox', 'burger', 'record', 'phone', 'cone', 'sax', 'skate', 'mug', 'guitar', 'mic', 'pie', 'note'],
+        cardFace: 'skate',
+        cardColor: 'cherry',
+        trivia: {
+          q: 'Why were 1950s school dances called sock hops?',
+          options: ['Dancers took off their shoes to protect the gym floor', 'Socks were given out as prizes',
+            'Everyone had to wear matching socks', 'The band played in its socks'],
+          answer: 0,
+          fact: 'Hard shoes could scratch the varnished gym floor, so students danced in their socks.'
+        }
+      },
+      {
+        name: 'Last Dance',
+        blocks: [[0, 0, 8, 4, 0], [1, 1, 7, 3, 1], [3, 2, 5, 2, 2], [7, 3, 1, 1, 3]],
+        faces: ['jukebox', 'burger', 'record', 'phone', 'cone', 'sax', 'skate', 'mug', 'guitar', 'mic', 'pie', 'note'],
+        cardFace: 'note',
+        cardColor: 'mint',
+        trivia: {
+          q: 'Which 1987 movie ends with the big dance to “(I’ve Had) The Time of My Life”?',
+          options: ['Footloose', 'Dirty Dancing', 'Flashdance', 'Saturday Night Fever'],
+          answer: 1,
+          fact: 'The song won the Academy Award for Best Original Song.'
+        }
+      }
+    ]
+  };
+
+  var CHAPTERS = [DRIVE_IN, DINER];
 
   // Tile count for each board, worked out from its blocks.
   CHAPTERS.forEach(function (ch) {

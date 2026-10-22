@@ -9,6 +9,7 @@
 
   var params = new URLSearchParams(location.search);
   var TEST = params.has('test');
+  var UNLOCK_ALL = TEST && !params.has('locks');
   var STORE_KEY = 'movie-night-mahjong.v1';
   var TILE_ASPECT = 1.25;
   var LAYER_SHIFT = 0.07;
@@ -60,13 +61,13 @@
   }
 
   function chapterUnlocked(chapter) {
-    if (TEST || !chapter.unlockAfter) return true;
+    if (UNLOCK_ALL || !chapter.unlockAfter) return true;
     return chapterDone(chapterById(chapter.unlockAfter));
   }
 
   function boardUnlocked(chapter, i) {
     if (!chapterUnlocked(chapter)) return false;
-    return TEST || i === 0 || save.cleared[boardKey(chapter, i)] || save.cleared[boardKey(chapter, i - 1)];
+    return UNLOCK_ALL || i === 0 || save.cleared[boardKey(chapter, i)] || save.cleared[boardKey(chapter, i - 1)];
   }
 
   // The next board on the main path, skipping bonus chapters.

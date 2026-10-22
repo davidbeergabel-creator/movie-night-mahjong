@@ -105,7 +105,106 @@
       '<path d="M46 48 Q50 42 54 48" stroke="' + INK + '" stroke-width="4" fill="none"/>' +
       '<rect x="11" y="43" width="30" height="20" rx="4" fill="#e8384f" stroke="' + INK + '" stroke-width="2"/>' +
       '<rect x="59" y="43" width="30" height="20" rx="4" fill="#38bde0" stroke="' + INK + '" stroke-width="2"/>' +
-      '<path d="M16 48 L22 48 M64 48 L70 48" stroke="#fff6e2" stroke-width="3" stroke-linecap="round"/>'
+      '<path d="M16 48 L22 48 M64 48 L70 48" stroke="#fff6e2" stroke-width="3" stroke-linecap="round"/>',
+
+    // Chapter 2: Rock 'n' Roll Diner
+    jukebox:
+      '<path d="M22 90 V44 C22 22 36 10 50 10 C64 10 78 22 78 44 V90 Z" fill="#8b4a2b" ' + S + '/>' +
+      '<path d="M30 52 V44 C30 28 39 18 50 18 C61 18 70 28 70 44 V52" fill="none" stroke="#f2892e" stroke-width="5"/>' +
+      '<path d="M37 52 V45 C37 34 43 27 50 27 C57 27 63 34 63 45 V52" fill="none" stroke="#ffc94a" stroke-width="5"/>' +
+      '<rect x="42" y="38" width="16" height="12" rx="3" fill="#fff0b3" stroke="' + INK + '" stroke-width="2.5"/>' +
+      '<rect x="31" y="58" width="38" height="26" rx="4" fill="#e8384f" stroke="' + INK + '" stroke-width="3"/>' +
+      '<path d="M39 62 V80 M46 62 V80 M54 62 V80 M61 62 V80" stroke="' + INK + '" stroke-width="2.5"/>' +
+      '<rect x="18" y="88" width="64" height="6" rx="2" fill="' + INK + '"/>',
+
+    record:
+      '<circle cx="50" cy="50" r="40" fill="#1d1a24" ' + S + '/>' +
+      '<g fill="none" stroke="#4a4458" stroke-width="1.6"><circle cx="50" cy="50" r="33"/><circle cx="50" cy="50" r="26"/><circle cx="50" cy="50" r="20"/></g>' +
+      '<path d="M26 32 A30 30 0 0 1 40 21" stroke="#8a82a0" stroke-width="3.5" fill="none" stroke-linecap="round"/>' +
+      '<circle cx="50" cy="50" r="13" fill="#e8384f" stroke="' + INK + '" stroke-width="2"/>' +
+      '<circle cx="50" cy="50" r="3" fill="#fff6e2"/>',
+
+    burger:
+      '<path d="M16 72 H84 V76 C84 86 16 86 16 76 Z" fill="#e9a94f" ' + S + '/>' +
+      '<rect x="13" y="58" width="74" height="13" rx="6.5" fill="#7a3e22" ' + S + '/>' +
+      '<path d="M15 54 H85 L79 61 L70 57 L60 63 L50 57 L40 62 L30 57 L21 61 Z" fill="#ffd23f" stroke="' + INK + '" stroke-width="2.5" stroke-linejoin="round"/>' +
+      '<path d="M13 52 Q19 45 25 52 T37 52 T49 52 T61 52 T73 52 T87 52 L87 56 L13 56 Z" fill="#6cc04a" stroke="' + INK + '" stroke-width="2.5" stroke-linejoin="round"/>' +
+      '<path d="M16 48 C16 22 84 22 84 48 Z" fill="#e9a94f" ' + S + '/>' +
+      '<g fill="#fff6e2"><ellipse cx="38" cy="34" rx="2.6" ry="1.6"/><ellipse cx="50" cy="30" rx="2.6" ry="1.6"/>' +
+      '<ellipse cx="62" cy="35" rx="2.6" ry="1.6"/><ellipse cx="44" cy="41" rx="2.6" ry="1.6"/><ellipse cx="57" cy="42" rx="2.6" ry="1.6"/></g>',
+
+    guitar:
+      '<g transform="translate(50 50) scale(1.12) translate(-50 -50) rotate(-38 50 50)">' +
+      '<circle cx="50" cy="73" r="20" fill="#e8384f" ' + S + '/><circle cx="50" cy="52" r="14" fill="#e8384f" ' + S + '/>' +
+      '<circle cx="50" cy="62" r="13" fill="#e8384f"/>' +
+      '<path d="M41 66 Q50 58 59 66 L59 84 Q50 90 41 84 Z" fill="#fff6e2" stroke="' + INK + '" stroke-width="2"/>' +
+      '<rect x="46" y="6" width="8" height="58" fill="#c08a4a" stroke="' + INK + '" stroke-width="3"/>' +
+      '<rect x="43" y="0" width="14" height="13" rx="3" fill="#2e2a3d" stroke="' + INK + '" stroke-width="3"/>' +
+      '<rect x="43" y="68" width="14" height="4" fill="' + INK + '"/><rect x="43" y="76" width="14" height="4" fill="' + INK + '"/>' +
+      '<path d="M48 12 V84 M52 12 V84" stroke="#fff6e2" stroke-width="1"/></g>',
+
+    mic:
+      '<path d="M28 40 V48 C28 66 72 66 72 48 V40" fill="none" stroke="' + INK + '" stroke-width="4.5" stroke-linecap="round"/>' +
+      '<path d="M50 64 V84" stroke="' + INK + '" stroke-width="5"/>' +
+      '<ellipse cx="50" cy="88" rx="20" ry="6" fill="#2e2a3d" stroke="' + INK + '" stroke-width="3"/>' +
+      '<rect x="34" y="8" width="32" height="46" rx="16" fill="#c9d1de" ' + S + '/>' +
+      '<path d="M38 20 H62 M37 28 H63 M37 36 H63 M38 44 H62" stroke="#6b7385" stroke-width="3" stroke-linecap="round"/>' +
+      '<rect x="32" y="48" width="36" height="7" rx="3.5" fill="#ffc94a" stroke="' + INK + '" stroke-width="2.5"/>',
+
+    skate:
+      '<path d="M26 14 H48 V48 Q50 57 60 59 L74 60 Q86 61 86 71 V75 H22 V18 Q22 14 26 14 Z" fill="#ffffff" ' + S + '/>' +
+      '<rect x="22" y="14" width="26" height="7" fill="#e8384f" stroke="' + INK + '" stroke-width="3"/>' +
+      '<path d="M29 28 L43 34 M43 28 L29 34 M29 39 L43 45 M43 39 L29 45 M30 50 L46 56" stroke="#e8384f" stroke-width="3" stroke-linecap="round"/>' +
+      '<rect x="20" y="75" width="68" height="5" rx="2" fill="#2e2a3d"/>' +
+      '<circle cx="88" cy="79" r="4.5" fill="#e8384f" stroke="' + INK + '" stroke-width="2"/>' +
+      '<circle cx="33" cy="86" r="8" fill="#ffc94a" stroke="' + INK + '" stroke-width="3"/><circle cx="33" cy="86" r="2.5" fill="' + INK + '"/>' +
+      '<circle cx="73" cy="86" r="8" fill="#ffc94a" stroke="' + INK + '" stroke-width="3"/><circle cx="73" cy="86" r="2.5" fill="' + INK + '"/>',
+
+    pie:
+      '<path d="M8 64 L92 58 V76 L8 80 Z" fill="#f0c27a" ' + S + '/>' +
+      '<path d="M10 68 L90 63 V69 L10 73 Z" fill="#c8213a"/>' +
+      '<path d="M8 64 L80 30 Q96 38 92 58 Z" fill="#c8213a" ' + S + '/>' +
+      '<path d="M80 30 Q96 38 92 58" fill="none" stroke="#f0c27a" stroke-width="7" stroke-linecap="round"/>' +
+      '<path d="M30 55 L84 37 M48 58 L90 47 M40 48 L58 61 M58 40 L74 59" stroke="#f0c27a" stroke-width="4" stroke-linecap="round"/>' +
+      '<circle cx="36" cy="52" r="3" fill="#7d0f22"/><circle cx="66" cy="48" r="3" fill="#7d0f22"/>',
+
+    mug:
+      '<path d="M40 22 Q34 16 40 10 M50 22 Q44 16 50 10 M60 22 Q54 16 60 10" fill="none" stroke="' + INK + '" stroke-width="3" stroke-linecap="round"/>' +
+      '<ellipse cx="47" cy="90" rx="36" ry="6" fill="#e3d8bd" stroke="' + INK + '" stroke-width="3"/>' +
+      '<path d="M70 42 C88 42 88 72 70 72" fill="none" stroke="' + INK + '" stroke-width="11"/>' +
+      '<path d="M70 42 C88 42 88 72 70 72" fill="none" stroke="#fffdf7" stroke-width="5"/>' +
+      '<path d="M24 30 H70 V78 Q70 88 60 88 H34 Q24 88 24 78 Z" fill="#fffdf7" ' + S + '/>' +
+      '<rect x="24" y="44" width="46" height="9" fill="#e8384f" stroke="' + INK + '" stroke-width="2.5"/>' +
+      '<ellipse cx="47" cy="31" rx="21" ry="4" fill="#6b3a20" stroke="' + INK + '" stroke-width="2.5"/>',
+
+    phone:
+      '<path d="M16 80 C16 60 30 50 50 50 C70 50 84 60 84 80 Z" fill="#8fd18a" ' + S + '/>' +
+      '<rect x="14" y="78" width="72" height="8" rx="4" fill="#5aa356" ' + S + '/>' +
+      '<circle cx="50" cy="66" r="12" fill="#fff6e2" stroke="' + INK + '" stroke-width="3"/>' +
+      '<g fill="' + INK + '"><circle cx="50" cy="58.5" r="1.8"/><circle cx="56.5" cy="62" r="1.8"/><circle cx="56.5" cy="70" r="1.8"/>' +
+      '<circle cx="50" cy="73.5" r="1.8"/><circle cx="43.5" cy="70" r="1.8"/><circle cx="43.5" cy="62" r="1.8"/></g>' +
+      '<path d="M12 42 C12 30 22 26 30 28 H70 C78 26 88 30 88 42 L76 45 C74 38 70 37 66 37 H34 C30 37 26 38 24 45 Z" fill="#8fd18a" ' + S + '/>',
+
+    cone:
+      '<path d="M33 52 L50 94 L67 52 Z" fill="#e0a15a" ' + S + '/>' +
+      '<path d="M38 60 L56 80 M44 54 L61 71 M60 58 L42 76 M54 54 L38 68" stroke="#a8692e" stroke-width="2.5" stroke-linecap="round"/>' +
+      '<circle cx="50" cy="44" r="16" fill="#7a4a2e" ' + S + '/>' +
+      '<path d="M34 48 Q38 56 42 50 Q46 58 50 51 Q55 58 58 50 Q62 56 66 48" fill="#7a4a2e" stroke="' + INK + '" stroke-width="2.5"/>' +
+      '<circle cx="50" cy="24" r="13" fill="#9ee0c2" ' + S + '/>' +
+      '<path d="M44 20 L47 18" stroke="#fff6e2" stroke-width="3" stroke-linecap="round"/>',
+
+    sax:
+      '<path d="M38 10 C46 10 48 14 48 22 V64 C48 80 58 88 67 88 C79 88 85 78 83 64 L81 52" fill="none" stroke="' + INK + '" stroke-width="18" stroke-linecap="round"/>' +
+      '<path d="M38 10 C46 10 48 14 48 22 V64 C48 80 58 88 67 88 C79 88 85 78 83 64 L81 52" fill="none" stroke="#e0b23c" stroke-width="11" stroke-linecap="round"/>' +
+      '<path d="M72 50 L90 34 L96 48 L84 58 Z" fill="#e0b23c" ' + S + '/>' +
+      '<path d="M38 10 L26 15" stroke="' + INK + '" stroke-width="5" stroke-linecap="round"/>' +
+      '<g fill="#fff6e2" stroke="' + INK + '" stroke-width="2"><circle cx="48" cy="32" r="3.5"/><circle cx="48" cy="44" r="3.5"/><circle cx="48" cy="56" r="3.5"/><circle cx="56" cy="78" r="3.5"/></g>',
+
+    note:
+      '<path d="M40 74 V24 M80 64 V14" stroke="' + INK + '" stroke-width="6" stroke-linecap="round"/>' +
+      '<path d="M37 22 L83 10 V24 L37 36 Z" fill="' + INK + '"/>' +
+      '<ellipse cx="29" cy="76" rx="13" ry="9.5" transform="rotate(-20 29 76)" fill="#d6336c" ' + S + '/>' +
+      '<ellipse cx="69" cy="66" rx="13" ry="9.5" transform="rotate(-20 69 66)" fill="#d6336c" ' + S + '/>'
   };
 
   function face(id) {

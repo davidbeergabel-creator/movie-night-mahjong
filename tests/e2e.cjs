@@ -81,6 +81,13 @@ async function checkNoSideScroll(page, where) {
   assert.match(await page.textContent('#cta'), /Play Board 3: Snack Bar/);
   assert.strictEqual(await page.getAttribute('html', 'data-text'), 'large');
   assert.match(await page.textContent('#album-count'), /^2 of/);
+  // Chapter 2 stays locked until Chapter 1 is finished.
+  await page.goto(url('test=1&locks=1'));
+  assert.match(await page.textContent('#tab-diner'), /Locked/);
+  await page.click('#tab-diner');
+  assert.ok(await page.isVisible('#chapter-locked'));
+  assert.ok(await page.isDisabled('[data-board="diner-1"]'));
+  await shot(page, '00-diner-locked');
 
   await page.goto(url('test=1&fresh=1&seed=11'));
   assert.strictEqual((await page.textContent('#cta')).trim(), 'Start the show');
@@ -240,20 +247,49 @@ async function checkNoSideScroll(page, where) {
   assert.ok(Math.min(...sizes) >= 44, 'tiles stay at least 44px wide on a phone');
 
   await shot(page, '10-chapter-done');
-  await page.click('[data-go="album"]');
+  assert.match(await page.textContent('#reveal'), /Chapter 2, Rock ’n’ Roll Diner, is now open/);
+
+  // Chapter 2: the program switches to the Diner, every board fits a phone, and board 1 plays through.
+  await page.click('[data-go="chapter:diner"]');
+  await page.waitForSelector('#hub:not([hidden])');
+  assert.strictEqual(await page.getAttribute('#tab-diner', 'aria-selected'), 'true');
+  await shot(page, '10b-hub-diner');
+  const dinerSizes = [];
+  for (let i = 6; i >= 1; i--) {
+    await page.click(`[data-board="diner-${i}"]`);
+    await page.waitForSelector('#game:not([hidden])');
+    if (await page.isVisible('#sheet-title:has-text("New tiles tonight")')) {
+      if (i === 1) await shot(page, '10c-diner-new-tiles');
+      await page.click('[data-close]');
+    }
+    dinerSizes.unshift(await page.evaluate(() => parseFloat(document.getElementById('board').style.getPropertyValue('--tw'))));
+    await checkNoSideScroll(page, `diner board ${i}`);
+    await shot(page, `10d-diner-${i}`);
+    if (i > 1) await page.click('#back');
+  }
+  console.log('Tile widths on a 390px phone, Diner boards 1-6:', dinerSizes.join(', '));
+  assert.ok(Math.min(...dinerSizes) >= 44, 'Diner tiles stay at least 44px wide on a phone');
+  await clearBoard(page);
+  await answerTrivia(page, true);
+  assert.ok(await page.isVisible('[data-go="board:diner-2"]'));
+  await page.click('[data-go="hub"]');
+  await page.click('#open-album');
   await page.waitForSelector('#album:not([hidden])');
-  assert.strictEqual(await page.$$eval('[data-card]', (els) => els.length), 6);
+  assert.strictEqual(await page.$$eval('[data-card]', (els) => els.length), 7);
+  assert.strictEqual(await page.$$eval('.album-section', (els) => els.length), 2);
   await shot(page, '11-album');
 
   await page.goto(url('test=1'));
+  await page.click('#tab-drive-in');
   assert.ok(await page.isVisible('#chapter-done'));
-  assert.match(await page.textContent('#album-count'), /6 of 6/);
+  assert.match(await page.textContent('#album-count'), /7 of 12/);
   await shot(page, '12-hub-done');
 
   // Desktop and tablet layouts.
   for (const [w, h, name] of [[1280, 800, 'desktop'], [1024, 768, 'tablet'], [844, 390, 'phone-landscape']]) {
     await page.setViewportSize({ width: w, height: h });
     await page.goto(url('test=1&seed=5'));
+    await page.click('#tab-drive-in');
     await page.click('[data-board="drive-in-6"]');
     await page.waitForSelector('#game:not([hidden])');
     const tw = await page.evaluate(() => parseFloat(document.getElementById('board').style.getPropertyValue('--tw')));
