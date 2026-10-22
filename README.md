@@ -2,7 +2,11 @@
 
 A relaxing mahjong solitaire for players who want big, clear tiles and no time pressure. It has a movie-night theme. Chapter 1, **Saturday at the Drive-In**, has six boards. Clearing a board earns a "Do you remember?" movie card for your album.
 
-Open `index.html` in a browser to play. It needs no build step and no server, and it works from GitHub Pages or straight from the file.
+## Play
+
+**https://davidbeergabel-creator.github.io/movie-night-mahjong/**
+
+You can also open `index.html` straight from a download. There's no build step and no server.
 
 ## What's in Chapter 1
 
