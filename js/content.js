@@ -29,7 +29,23 @@
     phone: 'Telephone',
     cone: 'Ice cream cone',
     sax: 'Saxophone',
-    note: 'Music note'
+    note: 'Music note',
+    rook: 'Rook',
+    bishop: 'Bishop',
+    knight: 'Knight',
+    king: 'King',
+    pawn: 'Pawn',
+    queen: 'Queen'
+  };
+
+  // How each chess piece moves, in the words the game uses to teach it.
+  var PIECE_RULES = {
+    rook: 'The rook moves in straight lines: up, down, left or right, as far as it likes. A piece in the way stops it.',
+    bishop: 'The bishop moves diagonally, as far as it likes. A piece in the way stops it.',
+    knight: 'The knight moves in an L: two squares one way, then one square to the side. It jumps over anything in between.',
+    king: 'The king moves one square in any direction.',
+    pawn: 'A pawn captures one square diagonally. Here, any two pawns that touch corner to corner can match.',
+    queen: 'The queen moves like a rook and a bishop together: straight or diagonal, as far as she likes.'
   };
 
   var DRIVE_IN = {
@@ -215,16 +231,118 @@
     ]
   };
 
-  var CHAPTERS = [DRIVE_IN, DINER];
+  // Bonus chapter. Grids: '#' is a square with a piece on it, '.' an empty square.
+  var CHESS = {
+    id: 'chess',
+    kicker: 'Bonus',
+    short: 'Chess Night',
+    title: 'Chess Night',
+    blurb: 'Learn the moves your grandkids play. Two matching pieces clear when one could capture the other.',
+    mode: 'chess',
+    bonus: true,
+    unlockAfter: 'drive-in',
+    cardTitle: 'Did you know?',
+    boards: [
+      {
+        name: 'Castle Walls',
+        grid: ['####', '####', '####', '####'],
+        pieces: ['rook'],
+        newPieces: ['rook'],
+        cardFace: 'rook',
+        cardColor: 'cherry',
+        trivia: {
+          q: 'Castling is a special move the king makes together with which piece?',
+          options: ['The rook', 'The queen', 'A knight', 'A pawn'],
+          answer: 0,
+          fact: 'The king moves two squares toward a rook, and the rook hops over to the king’s other side.'
+        }
+      },
+      {
+        name: 'Bishop’s Path',
+        grid: ['#####', '#####', '##.##', '#####', '#####'],
+        pieces: ['rook', 'bishop'],
+        newPieces: ['bishop'],
+        cardFace: 'bishop',
+        cardColor: 'violet',
+        trivia: {
+          q: 'A bishop that starts on a light square…',
+          options: ['…stays on light squares all game', '…changes color every move', '…can change color by capturing', '…must move to a dark square first'],
+          answer: 0,
+          fact: 'Bishops only move diagonally, so they never leave their starting color. That’s why each side gets one bishop for each color.'
+        }
+      },
+      {
+        name: 'Knight Moves',
+        grid: ['######', '#.##.#', '######', '#.##.#', '######'],
+        pieces: ['rook', 'bishop', 'knight'],
+        newPieces: ['knight'],
+        cardFace: 'knight',
+        cardColor: 'mint',
+        trivia: {
+          q: 'Which chess piece can jump over other pieces on an ordinary move?',
+          options: ['The knight', 'The queen', 'The bishop', 'The king'],
+          answer: 0,
+          fact: 'A knight always lands on a square of the other color from the one it started on.'
+        }
+      },
+      {
+        name: 'Royal Court',
+        grid: ['.####.', '######', '######', '######', '######', '.####.'],
+        pieces: ['rook', 'bishop', 'knight', 'king', 'pawn'],
+        newPieces: ['king', 'pawn'],
+        cardFace: 'pawn',
+        cardColor: 'bulb',
+        trivia: {
+          q: 'What happens when a pawn reaches the far side of the board?',
+          options: ['It becomes another piece, usually a queen', 'It goes back to its starting square', 'It leaves the board', 'It becomes a king'],
+          answer: 0,
+          fact: 'This is called promotion. A player can even end up with two or more queens.'
+        }
+      },
+      {
+        name: 'The Queen Arrives',
+        grid: ['######', '##..##', '#.##.#', '#.##.#', '##..##', '######'],
+        pieces: ['rook', 'bishop', 'knight', 'king', 'pawn', 'queen'],
+        newPieces: ['queen'],
+        cardFace: 'queen',
+        cardColor: 'dusk',
+        trivia: {
+          q: 'Before about 1500, how far could the piece in the queen’s place move?',
+          options: ['One square diagonally', 'Anywhere in a straight line', 'Only forward', 'It could not move'],
+          answer: 0,
+          fact: 'The old piece, called the fers or counselor, was one of the weakest. The far-reaching modern queen appeared in Spain in the late 1400s.'
+        }
+      },
+      {
+        name: 'Checkmate',
+        grid: ['######', '######', '######', '######', '######', '######'],
+        pieces: ['rook', 'bishop', 'knight', 'king', 'pawn', 'queen'],
+        newPieces: [],
+        cardFace: 'king',
+        cardColor: 'violet',
+        trivia: {
+          q: 'The word “checkmate” comes from a Persian phrase. What does it mean?',
+          options: ['The king is helpless', 'Check, my friend', 'The last move', 'The castle has fallen'],
+          answer: 0,
+          fact: 'Chess traveled from India to Persia and then to Europe, and it picked up words along the way.'
+        }
+      }
+    ]
+  };
 
-  // Tile count for each board, worked out from its blocks.
+  var CHAPTERS = [DRIVE_IN, DINER, CHESS];
+
+  // Tile count for each board, worked out from its blocks or its grid.
   CHAPTERS.forEach(function (ch) {
     ch.boards.forEach(function (b) {
-      b.tiles = b.blocks.reduce(function (n, blk) { return n + blk[2] * blk[3]; }, 0);
+      b.tiles = b.blocks
+        ? b.blocks.reduce(function (n, blk) { return n + blk[2] * blk[3]; }, 0)
+        : b.grid.join('').split('#').length - 1;
+      b.faces = b.faces || b.pieces;
     });
   });
 
-  var api = { FACES: FACES, CHAPTERS: CHAPTERS };
+  var api = { FACES: FACES, PIECE_RULES: PIECE_RULES, CHAPTERS: CHAPTERS };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.MNMContent = api;
 })(typeof window !== 'undefined' ? window : this);

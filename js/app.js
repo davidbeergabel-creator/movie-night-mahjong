@@ -3,6 +3,7 @@
   'use strict';
 
   var E = window.MNMEngine;
+  var CH = window.MNMChess;
   var ART = window.MNMArt;
   var C = window.MNMContent;
   var CHAPTERS = C.CHAPTERS;
@@ -98,6 +99,7 @@
       cards: {},
       seenIntro: {},
       seenHowTo: false,
+      seenChessHowTo: false,
       games: {},
       daily: {},
       lastPlayed: null,
@@ -126,6 +128,7 @@
       s[k] = Array.isArray(data[k]) ? fromArrays(data[k], 'drive-in') : plainObject(data[k]);
     });
     s.seenHowTo = !!data.seenHowTo;
+    s.seenChessHowTo = !!data.seenChessHowTo;
     s.games = plainObject(data.games);
     s.daily = plainObject(data.daily);
     if (data.current && typeof data.current.level === 'number' && Array.isArray(data.current.tiles)) {
@@ -512,6 +515,33 @@
     );
   }
 
+  // ---------- Rules for each kind of board ----------
+
+  function modeOf(board) {
+    return board.grid ? 'chess' : 'classic';
+  }
+
+  var RULES = {
+    classic: {
+      deal: function (board, rng, transposed) { return E.deal(board.blocks, board.faces, rng, transposed); },
+      matches: function (tiles) { return E.availableMatches(tiles); },
+      rescue: function (tiles, board, transposed, rng) { return E.rescue(tiles, board.blocks, transposed, rng); }
+    },
+    chess: {
+      deal: function (board, rng) { return CH.deal(board, rng); },
+      matches: function (tiles, board) { return CH.availableMatches(tiles, board); },
+      rescue: function (tiles, board, transposed, rng) { return CH.rescue(tiles, board, rng); }
+    }
+  };
+
+  function rules() {
+    return RULES[game.mode];
+  }
+
+  function currentMatches() {
+    return rules().matches(game.tiles, game.board);
+  }
+
   // ---------- Sound ----------
 
   var audio = null;
@@ -755,9 +785,74 @@
     );
   }
 
+  function miniBoard(piece) {
+    var dots = {};
+    var tiles = [{ id: 0, x: 2, y: 2, z: 0, face: piece, present: true }];
+    CH.reach(tiles, 0, { grid: ['.....', '.....', '..#..', '.....', '.....'] }).forEach(function (s) {
+      dots[s.x + ',' + s.y] = true;
+    });
+    var cells = '';
+    for (var y = 0; y < 5; y++) {
+      for (var x = 0; x < 5; x++) {
+        var dark = (x + y) % 2 ? ' dark' : '';
+        var inner = x === 2 && y === 2 ? ART.face(piece) : dots[x + ',' + y] ? '<i></i>' : '';
+        cells += '<span class="mb-sq' + dark + (dots[x + ',' + y] ? ' mb-dot' : '') + '">' + inner + '</span>';
+      }
+    }
+    return '<div class="mini-board" aria-hidden="true">' + cells + '</div>';
+  }
+
+  function showChessHowTo(thenPlay) {
+    openSheet(
+      '<p class="eyebrow">Bonus chapter</p>' +
+      '<h2 id="sheet-title">How Chess Night works</h2>' +
+      '<ul class="steps">' +
+      '<li><div class="step-art">' + miniTile('rook', 'square') + miniTile('rook', 'square') + '</div>' +
+      '<p><strong>Every tile is a chess piece.</strong> Two matching pieces clear when one could capture the other with its chess move.</p></li>' +
+      '<li><div class="step-art">' + miniBoard('rook') + '</div>' +
+      '<p><strong>Tap a piece to see its moves.</strong> Dots show the squares it can reach. A glowing ring marks a twin it can capture.</p></li>' +
+      '<li><div class="step-art">' + ART.icon('hint') + '</div>' +
+      '<p><strong>No need to know chess.</strong> Each board introduces one piece. Hint and Undo work as always.</p></li>' +
+      '</ul>' +
+      '<div class="sheet-actions"><button class="btn btn-primary btn-xl" type="button" data-close data-autofocus>' +
+      (thenPlay ? 'Let’s play' : 'Got it') + '</button></div>',
+      {
+        onClose: function () {
+          save.seenChessHowTo = true;
+          persist();
+          if (thenPlay) maybeShowIntro();
+        }
+      }
+    );
+  }
+
+  function showPieceIntro(found) {
+    var fresh = found.board.newPieces;
+    openSheet(
+      '<p class="eyebrow">Board ' + (found.index + 1) + ' · ' + esc(found.board.name) + '</p>' +
+      '<h2 id="sheet-title">' + (fresh.length === 1 ? 'Meet the ' + esc(C.FACES[fresh[0]].toLowerCase()) : 'Meet the ' +
+        fresh.map(function (p) { return esc(C.FACES[p].toLowerCase()); }).join(' and the ')) + '</h2>' +
+      fresh.map(function (p) {
+        return '<div class="piece-intro">' + miniBoard(p) + '<p>' + esc(C.PIECE_RULES[p]) + '</p></div>';
+      }).join('') +
+      '<div class="sheet-actions"><button class="btn btn-primary btn-xl" type="button" data-close data-autofocus>Let’s play</button></div>',
+      {
+        onClose: function () {
+          save.seenIntro[found.key] = true;
+          persist();
+        }
+      }
+    );
+  }
+
   function maybeShowIntro() {
     if (!game || game.spec.kind !== 'chapter') return;
     var found = lookup(game.spec.key);
+    if (game.mode === 'chess') {
+      if (!save.seenChessHowTo) showChessHowTo(true);
+      else if (!save.seenIntro[found.key] && found.board.newPieces.length) showPieceIntro(found);
+      return;
+    }
     var fresh = newFaces(found.chapter, found.index);
     if (save.seenIntro[found.key] || !fresh.length) return;
     openSheet(
@@ -923,13 +1018,14 @@
       var seed = opts.seed !== undefined ? opts.seed >>> 0
         : board.seed !== undefined ? board.seed
         : TEST && params.get('seed') ? Number(params.get('seed')) >>> 0 : randomSeed();
-      var transposed = opts.transposed !== undefined ? opts.transposed
+      var transposed = modeOf(board) === 'chess' ? false
+        : opts.transposed !== undefined ? opts.transposed
         : E.chooseOrientation(board.blocks, space.width, space.height, TILE_ASPECT, LAYER_SHIFT, MAX_TILE);
       game = {
         spec: spec,
         transposed: transposed,
         seed: seed,
-        tiles: E.deal(board.blocks, board.faces, E.mulberry32(seed), transposed),
+        tiles: RULES[modeOf(board)].deal(board, E.mulberry32(seed), transposed),
         history: [],
         moves: 0,
         hints: 0,
@@ -938,10 +1034,11 @@
       track('board_start', { board: spec.key, tiles: board.tiles });
     }
     game.board = board;
+    game.mode = modeOf(board);
     game.selected = null;
     game.busy = false;
     game.rng = E.mulberry32((game.seed ^ 0x9e3779b9) + game.moves);
-    game.bounds = E.bounds(E.layoutPositions(board.blocks, game.transposed));
+    if (game.mode === 'classic') game.bounds = E.bounds(E.layoutPositions(board.blocks, game.transposed));
     save.lastPlayed = spec.kind === 'chapter' ? spec.key : save.lastPlayed;
 
     var title = gameTitle(game.spec);
@@ -956,13 +1053,30 @@
     bar.style.transition = '';
     persist();
 
-    if (!save.seenHowTo) showHowTo(true);
+    if (!save.seenHowTo && game.mode === 'classic') showHowTo(true);
     else maybeShowIntro();
   }
 
   function buildBoard() {
     var el = $('board');
     el.innerHTML = '';
+    el.classList.toggle('chess', game.mode === 'chess');
+    if (game.mode === 'chess') {
+      var g = CH.size(game.board);
+      var squares = document.createElement('div');
+      squares.className = 'squares';
+      squares.style.gridTemplateColumns = 'repeat(' + g.cols + ', minmax(0, 1fr))';
+      squares.setAttribute('aria-hidden', 'true');
+      for (var y = 0; y < g.rows; y++) {
+        for (var x = 0; x < g.cols; x++) {
+          var sq = document.createElement('span');
+          sq.className = 'square' + ((x + y) % 2 ? ' dark' : '');
+          sq.dataset.sq = x + ',' + y;
+          squares.appendChild(sq);
+        }
+      }
+      el.appendChild(squares);
+    }
     game.tiles.forEach(function (t) {
       var b = document.createElement('button');
       b.type = 'button';
@@ -972,8 +1086,33 @@
     });
   }
 
+  function tileButton(id) {
+    return $('board').querySelector('.tile[data-id="' + id + '"]');
+  }
+
+  function layoutChess() {
+    var space = boardSpace();
+    var g = CH.size(game.board);
+    var S = Math.max(28, Math.floor(Math.min(space.width / g.cols, space.height / g.rows, 104)));
+    var inset = Math.round(S * 0.06);
+    var el = $('board');
+    el.style.width = g.cols * S + 'px';
+    el.style.height = g.rows * S + 'px';
+    el.style.setProperty('--sq', S + 'px');
+    el.style.setProperty('--tw', (S - 2 * inset) + 'px');
+    el.style.setProperty('--th', (S - 2 * inset) + 'px');
+    el.style.setProperty('--edge', Math.max(3, Math.round(S * 0.05)) + 'px');
+    game.tiles.forEach(function (t) {
+      var btn = tileButton(t.id);
+      btn.style.left = (t.x * S + inset) + 'px';
+      btn.style.top = (t.y * S + inset) + 'px';
+      btn.style.zIndex = String(t.y * 30 + t.x + 1);
+    });
+  }
+
   function layoutBoard() {
     if (!game) return;
+    if (game.mode === 'chess') { layoutChess(); return; }
     var space = boardSpace();
     var b = game.bounds;
     var W = Math.floor(E.tileWidthFor(b, space.width, space.height, TILE_ASPECT, LAYER_SHIFT, MAX_TILE));
@@ -988,22 +1127,63 @@
     el.style.setProperty('--th', H + 'px');
     el.style.setProperty('--edge', Math.max(3, Math.round(W * 0.06)) + 'px');
     game.tiles.forEach(function (t) {
-      var btn = el.children[t.id];
+      var btn = tileButton(t.id);
       btn.style.left = Math.round((t.x - b.minX) / 2 * W + (b.maxZ - t.z) * ox) + 'px';
       btn.style.top = Math.round((t.y - b.minY) / 2 * H + (b.maxZ - t.z) * oy) + 'px';
       btn.style.zIndex = String(t.z * 1000 + t.y * 30 + t.x + 1);
     });
   }
 
+  function renderChess() {
+    var tiles = game.tiles;
+    var sel = game.selected;
+    var reach = sel === null ? [] : CH.reach(tiles, sel, game.board);
+    var dots = {};
+    var targets = {};
+    reach.forEach(function (s) {
+      if (s.id === null) dots[s.x + ',' + s.y] = true;
+      else if (tiles[s.id].face === tiles[sel].face) targets[s.id] = true;
+    });
+    $('board').querySelectorAll('.square').forEach(function (sq) {
+      sq.classList.toggle('reach', !!dots[sq.dataset.sq]);
+    });
+    tiles.forEach(function (t) {
+      var btn = tileButton(t.id);
+      if (btn.dataset.face !== t.face) {
+        btn.dataset.face = t.face;
+        btn.innerHTML = ART.face(t.face);
+      }
+      btn.hidden = !t.present;
+      btn.classList.add('piece');
+      btn.classList.toggle('selected', t.id === sel);
+      btn.classList.toggle('match', !!targets[t.id]);
+      btn.setAttribute('aria-label', C.FACES[t.face] + (targets[t.id] ? ', can be captured' : ''));
+      btn.setAttribute('aria-pressed', t.id === sel ? 'true' : 'false');
+    });
+  }
+
   function render() {
+    var tiles = game.tiles;
+    if (game.mode === 'chess') {
+      renderChess();
+    } else {
+      renderClassic();
+    }
+    var left = E.remaining(tiles);
+    var total = tiles.length;
+    $('tiles-left').textContent = left + (game.mode === 'chess' ? (left === 1 ? ' piece left' : ' pieces left')
+      : (left === 1 ? ' tile left' : ' tiles left'));
+    $('progress-bar').style.width = Math.round((total - left) / total * 100) + '%';
+  }
+
+  function renderClassic() {
     var tiles = game.tiles;
     var free = {};
     E.freeTileIds(tiles).forEach(function (id) { free[id] = true; });
     var sel = game.selected;
     var selFace = sel === null ? null : tiles[sel].face;
-    var el = $('board');
     tiles.forEach(function (t) {
-      var btn = el.children[t.id];
+      var btn = tileButton(t.id);
       if (btn.dataset.face !== t.face) {
         btn.dataset.face = t.face;
         btn.innerHTML = ART.face(t.face);
@@ -1016,10 +1196,6 @@
       btn.setAttribute('aria-label', C.FACES[t.face] + (isFree ? '' : ', blocked'));
       btn.setAttribute('aria-pressed', t.id === sel ? 'true' : 'false');
     });
-    var left = E.remaining(tiles);
-    var total = tiles.length;
-    $('tiles-left').textContent = left + (left === 1 ? ' tile left' : ' tiles left');
-    $('progress-bar').style.width = Math.round((total - left) / total * 100) + '%';
   }
 
   function clearHint() {
@@ -1028,17 +1204,43 @@
     $('board').querySelectorAll('.tile.hint').forEach(function (t) { t.classList.remove('hint'); });
   }
 
+  function nudge(btn) {
+    btn.classList.remove('nudge');
+    void btn.offsetWidth;
+    btn.classList.add('nudge');
+  }
+
+  function onChessTap(id) {
+    var t = game.tiles[id];
+    var sel = game.selected;
+    if (sel === id) {
+      game.selected = null;
+    } else if (sel !== null && game.tiles[sel].face === t.face) {
+      if (CH.canMatch(game.tiles, sel, id, game.board)) {
+        matchPair(sel, id);
+        return;
+      }
+      nudge(tileButton(id));
+      sound('blocked');
+      toast('That ' + C.FACES[t.face].toLowerCase() + ' is out of reach. ' + C.PIECE_RULES[t.face]);
+      return;
+    } else {
+      game.selected = id;
+    }
+    sound('select');
+    render();
+  }
+
   var blockedTips = 0;
   function onTileTap(id) {
     if (!game || game.busy) return;
     var t = game.tiles[id];
     if (!t || !t.present) return;
     clearHint();
-    var btn = $('board').children[id];
+    if (game.mode === 'chess') { onChessTap(id); return; }
+    var btn = tileButton(id);
     if (!E.isFree(game.tiles, id)) {
-      btn.classList.remove('nudge');
-      void btn.offsetWidth;
-      btn.classList.add('nudge');
+      nudge(btn);
       sound('blocked');
       if (blockedTips < 3 || !save.settings.dimBlocked) {
         blockedTips++;
@@ -1062,16 +1264,15 @@
     game.busy = true;
     game.history.push(snapshotTiles(game.tiles));
     game.selected = null;
-    var el = $('board');
-    el.children[a].classList.remove('selected');
-    el.children[a].classList.add('leaving');
-    el.children[b].classList.add('leaving');
+    tileButton(a).classList.remove('selected');
+    tileButton(a).classList.add('leaving');
+    tileButton(b).classList.add('leaving');
     sound('match');
     setTimeout(function () {
       if (!game) return;
       [a, b].forEach(function (id) {
         game.tiles[id].present = false;
-        el.children[id].classList.remove('leaving');
+        tileButton(id).classList.remove('leaving');
       });
       game.moves++;
       var left = E.remaining(game.tiles);
@@ -1082,23 +1283,24 @@
         boardCleared();
         return;
       }
-      if (!E.availableMatches(game.tiles).length) rescue(true);
+      if (!currentMatches().length) rescue(true);
       render();
       persist();
     }, reducedMotion() ? 40 : 240);
   }
 
   function rescue(auto) {
-    var how = E.rescue(game.tiles, game.board.blocks, game.transposed, game.rng);
+    var how = rules().rescue(game.tiles, game.board, game.transposed, game.rng);
     game.rescues++;
     if (how === 'rearranged') layoutBoard();
     track('rescue', { board: game.spec.key, auto: auto, how: how });
     if (auto) {
+      var things = game.mode === 'chess' ? 'pieces' : 'tiles';
       toast(how === 'rearranged'
-        ? 'No pairs were left, so the last tiles moved to fresh spots.'
-        : 'No pairs were left, so the tiles were reshuffled for you.');
+        ? 'No pairs were left, so the last ' + things + ' moved to fresh spots.'
+        : 'No pairs were left, so the ' + things + ' were reshuffled for you.');
     } else {
-      toast('Tiles reshuffled.');
+      toast(game.mode === 'chess' ? 'Pieces reshuffled.' : 'Tiles reshuffled.');
     }
   }
 
@@ -1131,7 +1333,7 @@
   function onHint() {
     if (!game || game.busy) return;
     clearHint();
-    var moves = E.availableMatches(game.tiles);
+    var moves = currentMatches();
     if (!moves.length) {
       rescue(true);
       render();
@@ -1140,8 +1342,7 @@
     }
     game.selected = null;
     render();
-    var el = $('board');
-    moves[0].forEach(function (id) { el.children[id].classList.add('hint'); });
+    moves[0].forEach(function (id) { tileButton(id).classList.add('hint'); });
     game.hintTimer = setTimeout(clearHint, 5000);
     game.hints++;
     sound('hint');
@@ -1234,7 +1435,10 @@
       if (btn && !btn.disabled) go('board:' + btn.dataset.board);
     });
     $('open-album').addEventListener('click', function () { showScreen('album'); });
-    $('open-howto').addEventListener('click', function () { showHowTo(false); });
+    $('open-howto').addEventListener('click', function () {
+      if (chapterById(save.tab).mode === 'chess') showChessHowTo(false);
+      else showHowTo(false);
+    });
     $('open-settings').addEventListener('click', showSettings);
     $('back').addEventListener('click', leaveGame);
     $('album-back').addEventListener('click', function () { showScreen('hub'); });
@@ -1333,7 +1537,9 @@
       get game() { return game; },
       get save() { return save; },
       get trivia() { return trivia; },
-      tileButton: function (id) { return $('board').children[id]; }
+      chess: CH,
+      matches: function () { return game ? currentMatches() : []; },
+      tileButton: tileButton
     };
   }
 

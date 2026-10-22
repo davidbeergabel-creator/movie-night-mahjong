@@ -23,6 +23,8 @@
   --tile-shadow: rgba(4, 7, 24, 0.6);
   --scrim: rgba(8, 12, 30, 0.74);
   --dim: rgba(18, 26, 58, 0.42);
+  --sq-light: #28346f;
+  --sq-dark: #1b2450;
   --font-display: "Bungee", "Arial Black", Impact, system-ui, sans-serif;
   --font-body: "Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --gutter-l: max(16px, env(safe-area-inset-left, 0px));
@@ -493,6 +495,54 @@ button { font: inherit; color: inherit; }
 .tile.hint { animation: hint-pulse 1s ease-in-out infinite; }
 .tile.leaving { transform: translateY(-14px) scale(0.7); opacity: 0; }
 .tile.nudge { animation: nudge 0.32s ease; }
+
+/* Chess Night */
+.squares {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 0 0 4px var(--sky-3);
+}
+.square { position: relative; background: var(--sq-light); }
+.square.dark { background: var(--sq-dark); }
+.square.reach::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 26%;
+  height: 26%;
+  border-radius: 50%;
+  background: var(--mint);
+  box-shadow: 0 0 10px var(--mint);
+  transform: translate(-50%, -50%);
+}
+.tile.piece svg { left: 10%; top: 10%; width: 80%; height: 80%; }
+.tile.piece.match {
+  outline: 4px solid var(--mint);
+  outline-offset: 2px;
+  box-shadow: 0 0 18px var(--mint), var(--tile-shadows);
+}
+.mini-board {
+  flex: none;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  width: 7.5rem;
+  aspect-ratio: 1;
+  max-width: 100%;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 0 0 2px var(--sky-3);
+}
+.mb-sq { display: grid; place-items: center; background: var(--sq-light); }
+.mb-sq.dark { background: var(--sq-dark); }
+.mb-sq svg { width: 92%; height: 92%; }
+.mb-sq i { width: 34%; height: 34%; border-radius: 50%; background: var(--mint); }
+.piece-intro { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 14px; align-items: center; }
+.mini.square { height: 2.7rem; }
+.mini.square svg { left: 10%; top: 10%; width: 80%; height: 80%; }
 
 @keyframes hint-pulse {
   0%, 100% { box-shadow: 0 0 0 3px var(--mint), var(--tile-shadows); }

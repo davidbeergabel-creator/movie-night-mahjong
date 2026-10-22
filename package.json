@@ -4,7 +4,7 @@
   "private": true,
   "description": "A relaxing mahjong solitaire with big, clear tiles and a movie-night theme.",
   "scripts": {
-    "test": "node --test tests/engine.test.js",
+    "test": "node --test tests/engine.test.js tests/chess.test.js",
     "e2e": "node tests/e2e.cjs"
   },
   "devDependencies": {

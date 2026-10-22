@@ -27,7 +27,7 @@ async function playPair(page) {
   const pair = await page.evaluate(() => {
     const g = window.__mnm.game;
     if (!g) return null;
-    const m = window.__mnm.engine.availableMatches(g.tiles);
+    const m = window.__mnm.matches();
     return m.length ? m[0] : [];
   });
   if (pair === null) return false;
@@ -276,14 +276,68 @@ async function checkNoSideScroll(page, where) {
   await page.click('#open-album');
   await page.waitForSelector('#album:not([hidden])');
   assert.strictEqual(await page.$$eval('[data-card]', (els) => els.length), 7);
-  assert.strictEqual(await page.$$eval('.album-section', (els) => els.length), 2);
+  assert.strictEqual(await page.$$eval('.album-section', (els) => els.length), 3);
   await shot(page, '11-album');
 
   await page.goto(url('test=1'));
   await page.click('#tab-drive-in');
   assert.ok(await page.isVisible('#chapter-done'));
-  assert.match(await page.textContent('#album-count'), /7 of 12/);
+  assert.match(await page.textContent('#album-count'), /7 of 18/);
   await shot(page, '12-hub-done');
+
+  // Chess Night: the how-to and piece intro, move dots, an out-of-reach twin, and a full board.
+  await page.goto(url('test=1&seed=21'));
+  await page.click('#tab-chess');
+  await shot(page, '12b-hub-chess');
+  await page.click('[data-board="chess-3"]');
+  await page.waitForSelector('#sheet-title:has-text("How Chess Night works")');
+  await shot(page, '12c-chess-howto');
+  await page.click('[data-close]');
+  await page.waitForSelector('#sheet-title:has-text("Meet the knight")');
+  await shot(page, '12d-meet-knight');
+  await page.click('[data-close]');
+  await page.waitForSelector('#overlay', { state: 'hidden' });
+  const chessCheck = await page.evaluate(() => {
+    const g = window.__mnm.game;
+    const CH = window.__mnm.chess;
+    // Pick a piece that has a twin it can reach and a twin it cannot.
+    for (const t of g.tiles) {
+      const reach = CH.reach(g.tiles, t.id, g.board);
+      const reachable = new Set(reach.filter((s) => s.id !== null).map((s) => s.id));
+      const twins = g.tiles.filter((o) => o.id !== t.id && o.face === t.face);
+      const near = twins.find((o) => reachable.has(o.id));
+      const far = twins.find((o) => !reachable.has(o.id));
+      if (near && far) return { id: t.id, near: near.id, far: far.id, dots: reach.filter((s) => s.id === null).length };
+    }
+    return null;
+  });
+  assert.ok(chessCheck, 'found a piece with a near and a far twin');
+  await page.click(`#board .tile[data-id="${chessCheck.id}"]`);
+  assert.strictEqual(await page.$$eval('.square.reach', (els) => els.length), chessCheck.dots);
+  assert.ok(await page.$eval(`#board .tile[data-id="${chessCheck.near}"]`, (el) => el.classList.contains('match')));
+  await shot(page, '12e-chess-selected');
+  await page.click(`#board .tile[data-id="${chessCheck.far}"]`);
+  await page.waitForSelector('#toast.show');
+  assert.match(await page.textContent('#toast'), /out of reach/);
+  const piecesBefore = await tilesLeft(page);
+  await page.click(`#board .tile[data-id="${chessCheck.near}"]`);
+  await waitIdle(page);
+  assert.strictEqual(await tilesLeft(page), piecesBefore - 2);
+  await checkNoSideScroll(page, 'chess board');
+  await clearBoard(page);
+  assert.match(await page.textContent('#sheet-title'), /Did you know\?/);
+  await answerTrivia(page, true);
+  await shot(page, '12f-chess-card');
+  await page.click('[data-go="hub"]');
+  for (let i = 1; i <= 6; i++) {
+    await page.click(`[data-board="chess-${i}"]`);
+    await page.waitForSelector('#game:not([hidden])');
+    while (await page.isVisible('#overlay:not([hidden]) [data-close]')) await page.click('#overlay [data-close]');
+    const sq = await page.evaluate(() => parseFloat(document.getElementById('board').style.getPropertyValue('--sq')));
+    assert.ok(sq >= 50, `chess board ${i} squares are ${sq}px on a phone`);
+    if (i === 6) await shot(page, '12g-chess-6');
+    await page.click('#back');
+  }
 
   // Desktop and tablet layouts.
   for (const [w, h, name] of [[1280, 800, 'desktop'], [1024, 768, 'tablet'], [844, 390, 'phone-landscape']]) {

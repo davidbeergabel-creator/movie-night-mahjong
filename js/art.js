@@ -204,7 +204,55 @@
       '<path d="M40 74 V24 M80 64 V14" stroke="' + INK + '" stroke-width="6" stroke-linecap="round"/>' +
       '<path d="M37 22 L83 10 V24 L37 36 Z" fill="' + INK + '"/>' +
       '<ellipse cx="29" cy="76" rx="13" ry="9.5" transform="rotate(-20 29 76)" fill="#d6336c" ' + S + '/>' +
-      '<ellipse cx="69" cy="66" rx="13" ry="9.5" transform="rotate(-20 69 66)" fill="#d6336c" ' + S + '/>'
+      '<ellipse cx="69" cy="66" rx="13" ry="9.5" transform="rotate(-20 69 66)" fill="#d6336c" ' + S + '/>',
+
+    // Chess Night: each piece has its own color as well as its own shape.
+    pawn:
+      '<rect x="22" y="78" width="56" height="12" rx="4" fill="#3d7bda" ' + S + '/>' +
+      '<path d="M42 50 C42 62 34 70 30 78 H70 C66 70 58 62 58 50 Z" fill="#3d7bda" ' + S + '/>' +
+      '<path d="M37 44 H63 L59 51 H41 Z" fill="#3d7bda" ' + S + '/>' +
+      '<circle cx="50" cy="29" r="13" fill="#3d7bda" ' + S + '/>' +
+      '<path d="M44 24 Q46 20 50 19" stroke="#fff6e2" stroke-width="3" fill="none" stroke-linecap="round"/>',
+
+    rook:
+      '<rect x="20" y="82" width="60" height="9" rx="3" fill="#e8384f" ' + S + '/>' +
+      '<rect x="25" y="74" width="50" height="9" rx="3" fill="#e8384f" ' + S + '/>' +
+      '<path d="M32 34 H68 L64 74 H36 Z" fill="#e8384f" ' + S + '/>' +
+      '<path d="M28 14 H38 V22 H45 V14 H55 V22 H62 V14 H72 V34 H28 Z" fill="#e8384f" ' + S + '/>' +
+      '<path d="M36 50 H64 M38 62 H62" stroke="' + INK + '" stroke-width="2.5"/>' +
+      '<path d="M50 34 V50 M44 50 V62 M56 50 V62" stroke="' + INK + '" stroke-width="2.5"/>',
+
+    bishop:
+      '<rect x="22" y="80" width="56" height="10" rx="4" fill="#8e5bd8" ' + S + '/>' +
+      '<path d="M42 66 C42 72 36 76 33 80 H67 C64 76 58 72 58 66 Z" fill="#8e5bd8" ' + S + '/>' +
+      '<rect x="37" y="59" width="26" height="7" rx="2" fill="#8e5bd8" ' + S + '/>' +
+      '<path d="M50 18 C65 28 67 47 58 59 H42 C33 47 35 28 50 18 Z" fill="#8e5bd8" ' + S + '/>' +
+      '<path d="M56 30 L46 44" stroke="#fff6e2" stroke-width="4.5" stroke-linecap="round"/>' +
+      '<circle cx="50" cy="13" r="5.5" fill="#8e5bd8" ' + S + '/>',
+
+    knight:
+      '<rect x="22" y="82" width="58" height="10" rx="4" fill="#2fb3a3" ' + S + '/>' +
+      '<path d="M32 82 C30 72 34 64 42 56 C46 52 46 48 43 45 L31 50 C25 53 18 49 20 42 C22 32 30 22 40 17 L44 8 L50 15 C62 18 70 30 72 44 C74 56 76 68 76 82 Z" fill="#2fb3a3" ' + S + '/>' +
+      '<path d="M58 20 Q68 32 70 48 Q71 60 72 72" stroke="#1d7f74" stroke-width="4" fill="none" stroke-linecap="round"/>' +
+      '<circle cx="40" cy="29" r="3.2" fill="' + INK + '"/>' +
+      '<path d="M24 44 L28 45" stroke="' + INK + '" stroke-width="2.5" stroke-linecap="round"/>',
+
+    queen:
+      '<rect x="22" y="80" width="56" height="10" rx="4" fill="#ffc94a" ' + S + '/>' +
+      '<path d="M34 74 H66 L62 80 H38 Z" fill="#ffc94a" ' + S + '/>' +
+      '<rect x="30" y="64" width="40" height="10" rx="3" fill="#ffc94a" ' + S + '/>' +
+      '<path d="M22 30 L33 64 H67 L78 30 L64 48 L58 22 L50 46 L42 22 L36 48 Z" fill="#ffc94a" ' + S + '/>' +
+      '<g fill="#ffc94a" stroke="' + INK + '" stroke-width="3"><circle cx="22" cy="28" r="5"/><circle cx="42" cy="20" r="5"/>' +
+      '<circle cx="58" cy="20" r="5"/><circle cx="78" cy="28" r="5"/></g>' +
+      '<circle cx="50" cy="56" r="4" fill="#e8384f" stroke="' + INK + '" stroke-width="2"/>',
+
+    king:
+      '<rect x="22" y="80" width="56" height="10" rx="4" fill="#f2892e" ' + S + '/>' +
+      '<path d="M35 66 H65 L61 80 H39 Z" fill="#f2892e" ' + S + '/>' +
+      '<rect x="30" y="58" width="40" height="9" rx="3" fill="#f2892e" ' + S + '/>' +
+      '<path d="M31 58 C26 42 36 30 50 30 C64 30 74 42 69 58 Z" fill="#f2892e" ' + S + '/>' +
+      '<path d="M46 6 H54 V13 H61 V21 H54 V30 H46 V21 H39 V13 H46 Z" fill="#f2892e" ' + S + '/>' +
+      '<path d="M40 40 Q44 35 50 35" stroke="#fff6e2" stroke-width="3.5" fill="none" stroke-linecap="round"/>'
   };
 
   function face(id) {
