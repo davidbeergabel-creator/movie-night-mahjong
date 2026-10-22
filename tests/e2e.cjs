@@ -46,8 +46,7 @@ async function clearBoard(page) {
 }
 
 async function answerTrivia(page, right) {
-  const level = await page.evaluate(() => Number(document.querySelector('#sheet .eyebrow').textContent.match(/\d+/)[0]) - 1);
-  const correct = await page.evaluate((l) => window.MNMContent.CHAPTER.boards[l].trivia.answer, level);
+  const correct = await page.evaluate(() => window.__mnm.trivia.found.board.trivia.answer);
   const choice = right ? correct : (correct + 1) % 4;
   await page.click(`[data-answer="${choice}"]`);
   await page.waitForSelector('#reveal:not([hidden])');
@@ -67,6 +66,18 @@ async function checkNoSideScroll(page, where) {
   const page = await ctx.newPage();
   page.on('pageerror', (e) => errors.push(e.message));
   page.on('console', (m) => { if (m.type() === 'error' && !/fonts\.g/.test(m.text())) errors.push(m.text()); });
+
+  // A version 1 save (Chapter 1 progress in arrays) carries over.
+  await page.goto(url('test=1&fresh=1'));
+  await page.evaluate(() => localStorage.setItem('movie-night-mahjong.v1', JSON.stringify({
+    settings: { textSize: 'large', dimBlocked: true, showMatch: false, sound: false },
+    cleared: [true, true, false, false, false, false], cards: [{ correct: true }, { correct: false }, null, null, null, null],
+    seenIntro: [false, true, false, false, false, false], seenHowTo: true, current: null
+  })));
+  await page.goto(url('test=1'));
+  assert.match(await page.textContent('#cta'), /Play Board 3: Snack Bar/);
+  assert.strictEqual(await page.getAttribute('html', 'data-text'), 'large');
+  assert.match(await page.textContent('#album-count'), /^2 of/);
 
   await page.goto(url('test=1&fresh=1&seed=11'));
   assert.strictEqual((await page.textContent('#cta')).trim(), 'Start the show');
@@ -122,7 +133,7 @@ async function checkNoSideScroll(page, where) {
   await shot(page, '05-trivia');
   await answerTrivia(page, false);
   await shot(page, '06-trivia-answered');
-  await page.click('[data-go="board:1"]');
+  await page.click('[data-go="board:drive-in-2"]');
 
   // Board 2 opens with its new tiles.
   await page.waitForSelector('#sheet-title:has-text("New tiles tonight")');
@@ -154,7 +165,7 @@ async function checkNoSideScroll(page, where) {
   const sizes = [];
   for (let level = 1; level < 6; level++) {
     if (level > 1) {
-      await page.click(`[data-go="board:${level}"]`);
+      await page.click(`[data-go="board:drive-in-${level + 1}"]`);
       if (await page.isVisible('#sheet-title:has-text("New tiles tonight")')) await page.click('[data-close]');
     }
     await page.waitForSelector('#overlay', { state: 'hidden' });
@@ -183,7 +194,7 @@ async function checkNoSideScroll(page, where) {
   for (const [w, h, name] of [[1280, 800, 'desktop'], [1024, 768, 'tablet'], [844, 390, 'phone-landscape']]) {
     await page.setViewportSize({ width: w, height: h });
     await page.goto(url('test=1&seed=5'));
-    await page.click('[data-board="5"]');
+    await page.click('[data-board="drive-in-6"]');
     await page.waitForSelector('#game:not([hidden])');
     const tw = await page.evaluate(() => parseFloat(document.getElementById('board').style.getPropertyValue('--tw')));
     console.log(`Grand Finale tile width on ${name} (${w}x${h}): ${tw}px`);

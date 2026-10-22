@@ -23,19 +23,22 @@
             <span class="marquee-big">Mahjong</span>
           </h1>
         </div>
-        <p class="chapter-line">Chapter 1 · Saturday at the Drive-In</p>
+        <p class="chapter-line">Big tiles · No timer · A movie night every night</p>
       </header>
 
-      <div id="chapter-done" class="banner" hidden>
-        <strong>You finished Chapter 1.</strong>
-        <span>Next up: <span id="next-chapter"></span>. Coming soon.</span>
-      </div>
+      <section id="daily" class="daily" aria-labelledby="daily-title" hidden></section>
 
       <button id="cta" class="btn btn-primary btn-xl" type="button">Start the show</button>
 
       <section class="program-section" aria-labelledby="program-title">
-        <h2 id="program-title" class="section-label">Tonight’s program</h2>
+        <div id="chapter-tabs" class="chapter-tabs" role="tablist" aria-label="Chapters" hidden></div>
+        <div class="chapter-head">
+          <h2 id="program-title" class="section-label">Tonight’s program</h2>
+          <p id="chapter-sub" class="chapter-sub"></p>
+        </div>
+        <div id="chapter-done" class="banner" hidden></div>
         <ol id="program" class="program"></ol>
+        <p id="chapter-locked" class="locked-note" hidden></p>
       </section>
 
       <nav class="hub-actions" aria-label="More">
@@ -76,7 +79,7 @@
     <div class="album-scroll">
       <div class="album-inner">
         <p class="album-intro">Clear a board to collect its card. Every card asks you something from the movies.</p>
-        <div id="album-grid" class="album-grid"></div>
+        <div id="album-sections" class="album-sections"></div>
       </div>
     </div>
   </section>

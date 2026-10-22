@@ -2,7 +2,8 @@
 const test = require('node:test');
 const assert = require('node:assert');
 const E = require('../js/engine.js');
-const { CHAPTER, FACES } = require('../js/content.js');
+const { CHAPTERS, FACES } = require('../js/content.js');
+const BOARDS = CHAPTERS.filter((ch) => ch.mode === 'classic').flatMap((ch) => ch.boards);
 
 // Plays a board to the end the way a careless player would: always the first pair on offer,
 // rescuing whenever no pairs are left. Returns how many rescues it took.
@@ -27,7 +28,7 @@ function key(t) {
 }
 
 test('every board layout is well formed', () => {
-  CHAPTER.boards.forEach((board) => {
+  BOARDS.forEach((board) => {
     [false, true].forEach((transposed) => {
       const positions = E.layoutPositions(board.blocks, transposed);
       assert.strictEqual(positions.length, board.tiles, board.name);
@@ -52,7 +53,7 @@ test('every board layout is well formed', () => {
 });
 
 test('every deal pairs up faces and can be cleared in its own removal order', () => {
-  CHAPTER.boards.forEach((board) => {
+  BOARDS.forEach((board) => {
     for (let seed = 1; seed <= 150; seed++) {
       const transposed = seed % 2 === 0;
       const tiles = E.deal(board.blocks, board.faces, E.mulberry32(seed), transposed);
@@ -66,7 +67,7 @@ test('every deal pairs up faces and can be cleared in its own removal order', ()
 });
 
 test('a dealt board can always be finished, even when the player picks badly', () => {
-  CHAPTER.boards.forEach((board) => {
+  BOARDS.forEach((board) => {
     let totalRescues = 0;
     for (let seed = 1; seed <= 120; seed++) {
       const rng = E.mulberry32(seed * 7919);
@@ -81,7 +82,7 @@ test('a dealt board can always be finished, even when the player picks badly', (
 });
 
 test('rescue keeps the same faces and leaves a move to make', () => {
-  const board = CHAPTER.boards[5];
+  const board = BOARDS[5];
   const rng = E.mulberry32(42);
   const tiles = E.deal(board.blocks, board.faces, rng, false);
   // Clear half the board, then rescue.
@@ -99,7 +100,7 @@ test('rescue keeps the same faces and leaves a move to make', () => {
 });
 
 test('rescue rearranges a stack that no reshuffle could fix', () => {
-  const board = CHAPTER.boards[0];
+  const board = BOARDS[0];
   const tiles = E.deal(board.blocks, board.faces, E.mulberry32(3), false);
   // Leave one raised tile and one tile directly underneath it: only the top one is free.
   const top = tiles.find((t) => t.z === 1);

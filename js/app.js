@@ -5,8 +5,7 @@
   var E = window.MNMEngine;
   var ART = window.MNMArt;
   var C = window.MNMContent;
-  var CHAPTER = C.CHAPTER;
-  var BOARDS = CHAPTER.boards;
+  var CHAPTERS = C.CHAPTERS;
 
   var params = new URLSearchParams(location.search);
   var TEST = params.has('test');
@@ -31,17 +30,88 @@
     events.push(e);
   }
 
+  // ---------- Chapters and boards ----------
+
+  function chapterById(id) {
+    for (var i = 0; i < CHAPTERS.length; i++) if (CHAPTERS[i].id === id) return CHAPTERS[i];
+    return null;
+  }
+
+  function boardKey(chapter, index) {
+    return chapter.id + '-' + (index + 1);
+  }
+
+  // 'drive-in-3' -> the third board of the Drive-In chapter.
+  function lookup(key) {
+    var m = /^([a-z-]+)-(\d+)$/.exec(key || '');
+    if (!m) return null;
+    var chapter = chapterById(m[1]);
+    var index = Number(m[2]) - 1;
+    if (!chapter || !chapter.boards[index]) return null;
+    return { key: key, chapter: chapter, index: index, board: chapter.boards[index] };
+  }
+
+  function chapterDone(chapter) {
+    return chapter.boards.every(function (b, i) { return save.cleared[boardKey(chapter, i)]; });
+  }
+
+  function chapterCleared(chapter) {
+    return chapter.boards.filter(function (b, i) { return save.cleared[boardKey(chapter, i)]; }).length;
+  }
+
+  function chapterUnlocked(chapter) {
+    if (TEST || !chapter.unlockAfter) return true;
+    return chapterDone(chapterById(chapter.unlockAfter));
+  }
+
+  function boardUnlocked(chapter, i) {
+    if (!chapterUnlocked(chapter)) return false;
+    return TEST || i === 0 || save.cleared[boardKey(chapter, i)] || save.cleared[boardKey(chapter, i - 1)];
+  }
+
+  // The next board on the main path, skipping bonus chapters.
+  function nextBoard() {
+    for (var c = 0; c < CHAPTERS.length; c++) {
+      var ch = CHAPTERS[c];
+      if (ch.bonus || !chapterUnlocked(ch)) continue;
+      for (var i = 0; i < ch.boards.length; i++) {
+        if (!save.cleared[boardKey(ch, i)]) return lookup(boardKey(ch, i));
+      }
+    }
+    return null;
+  }
+
+  function newFaces(chapter, index) {
+    var faces = chapter.boards[index].faces;
+    if (index === 0) return chapter.id === CHAPTERS[0].id ? [] : faces.slice();
+    var before = chapter.boards[index - 1].faces;
+    return faces.filter(function (f) { return before.indexOf(f) < 0; });
+  }
+
   // ---------- Saved progress ----------
 
   function defaultSave() {
     return {
       settings: { textSize: 'standard', dimBlocked: true, showMatch: false, sound: true },
-      cleared: BOARDS.map(function () { return false; }),
-      cards: BOARDS.map(function () { return null; }),
-      seenIntro: BOARDS.map(function () { return false; }),
+      cleared: {},
+      cards: {},
+      seenIntro: {},
       seenHowTo: false,
-      current: null
+      games: {},
+      lastPlayed: null,
+      tab: CHAPTERS[0].id
     };
+  }
+
+  function plainObject(v) {
+    return v && typeof v === 'object' && !Array.isArray(v) ? v : {};
+  }
+
+  // Version 1 kept Chapter 1 progress in arrays; carry it over to board keys.
+  function fromArrays(list, chapterId) {
+    var out = {};
+    list.forEach(function (v, i) { if (v) out[chapterId + '-' + (i + 1)] = v; });
+    return out;
   }
 
   function normalize(data) {
@@ -51,10 +121,21 @@
       if (typeof data.settings[k] === typeof s.settings[k]) s.settings[k] = data.settings[k];
     });
     ['cleared', 'cards', 'seenIntro'].forEach(function (k) {
-      if (Array.isArray(data[k])) s[k] = s[k].map(function (v, i) { return data[k][i] === undefined ? v : data[k][i]; });
+      s[k] = Array.isArray(data[k]) ? fromArrays(data[k], 'drive-in') : plainObject(data[k]);
     });
     s.seenHowTo = !!data.seenHowTo;
-    if (data.current && BOARDS[data.current.level] && Array.isArray(data.current.tiles)) s.current = data.current;
+    s.games = plainObject(data.games);
+    if (data.current && typeof data.current.level === 'number' && Array.isArray(data.current.tiles)) {
+      var key = 'drive-in-' + (data.current.level + 1);
+      s.games[key] = Object.assign({}, data.current, { spec: { kind: 'chapter', key: key } });
+      s.lastPlayed = key;
+    }
+    Object.keys(s.games).forEach(function (k) {
+      var g = s.games[k];
+      if (!g || !g.spec || !Array.isArray(g.tiles) || !resolveBoard(g.spec)) delete s.games[k];
+    });
+    if (typeof data.lastPlayed === 'string') s.lastPlayed = data.lastPlayed;
+    if (typeof data.tab === 'string' && chapterById(data.tab)) s.tab = data.tab;
     return s;
   }
 
@@ -72,7 +153,7 @@
   var screen = 'hub';
 
   function persist() {
-    if (game) save.current = snapshotGame();
+    if (game) save.games[game.spec.key] = snapshotGame();
     try { localStorage.setItem(STORE_KEY, JSON.stringify(save)); } catch (e) { /* private window: play on without saving */ }
   }
 
@@ -86,7 +167,7 @@
 
   function snapshotGame() {
     return {
-      level: game.level,
+      spec: game.spec,
       transposed: game.transposed,
       seed: game.seed,
       tiles: snapshotTiles(game.tiles),
@@ -94,6 +175,26 @@
       moves: game.moves,
       hints: game.hints,
       rescues: game.rescues
+    };
+  }
+
+  // ---------- Board kinds ----------
+
+  // A spec says which board a game is: { kind: 'chapter', key: 'drive-in-3' }.
+  function resolveBoard(spec) {
+    if (!spec) return null;
+    if (spec.kind === 'chapter') {
+      var found = lookup(spec.key);
+      return found && found.board;
+    }
+    return null;
+  }
+
+  function gameTitle(spec) {
+    var found = lookup(spec.key);
+    return {
+      meta: found.chapter.kicker + ' · Board ' + (found.index + 1) + ' of ' + found.chapter.boards.length,
+      name: found.board.name
     };
   }
 
@@ -145,6 +246,11 @@
     toastTimer = setTimeout(function () { el.classList.remove('show'); }, 4000);
   }
 
+  function hideToast() {
+    clearTimeout(toastTimer);
+    $('toast').classList.remove('show');
+  }
+
   // ---------- Screens ----------
 
   function showScreen(name) {
@@ -154,75 +260,120 @@
     if (name === 'album') renderAlbum();
   }
 
-  function isUnlocked(i) {
-    return TEST || i === 0 || save.cleared[i] || save.cleared[i - 1];
-  }
-
-  function nextBoard() {
-    for (var i = 0; i < BOARDS.length; i++) if (!save.cleared[i]) return i;
-    return null;
+  function totalBoards() {
+    return CHAPTERS.reduce(function (n, ch) { return n + ch.boards.length; }, 0);
   }
 
   function cardsCollected() {
-    return save.cards.filter(Boolean).length;
+    return Object.keys(save.cards).filter(function (k) { return save.cards[k] && lookup(k); }).length;
   }
 
-  function renderHub() {
-    var next = nextBoard();
+  function renderCta() {
     var cta = $('cta');
-    var current = save.current;
-    $('chapter-done').hidden = next !== null;
-    $('next-chapter').textContent = CHAPTER.next;
-    if (current) {
-      cta.textContent = 'Resume Board ' + (current.level + 1) + ': ' + BOARDS[current.level].name;
-      cta.dataset.action = 'board:' + current.level;
-    } else if (next === null) {
+    var last = save.lastPlayed && save.games[save.lastPlayed] && lookup(save.lastPlayed);
+    var next = nextBoard();
+    if (last) {
+      cta.textContent = 'Resume Board ' + (last.index + 1) + ': ' + last.board.name;
+      cta.dataset.action = 'board:' + last.key;
+    } else if (!next) {
       cta.textContent = 'See your Movie Night album';
       cta.dataset.action = 'album';
-    } else if (next === 0) {
+    } else if (next.key === boardKey(CHAPTERS[0], 0)) {
       cta.textContent = 'Start the show';
-      cta.dataset.action = 'board:0';
+      cta.dataset.action = 'board:' + next.key;
     } else {
-      cta.textContent = 'Play Board ' + (next + 1) + ': ' + BOARDS[next].name;
-      cta.dataset.action = 'board:' + next;
+      cta.textContent = 'Play Board ' + (next.index + 1) + ': ' + next.board.name;
+      cta.dataset.action = 'board:' + next.key;
+    }
+  }
+
+  function renderTabs() {
+    var tabs = $('chapter-tabs');
+    tabs.hidden = CHAPTERS.length < 2;
+    tabs.innerHTML = CHAPTERS.map(function (ch) {
+      var on = ch.id === save.tab;
+      var status = chapterUnlocked(ch)
+        ? chapterCleared(ch) + ' of ' + ch.boards.length
+        : ART.icon('lock') + 'Locked';
+      return '<button class="chapter-tab' + (on ? ' on' : '') + '" type="button" role="tab" id="tab-' + ch.id +
+        '" data-tab="' + ch.id + '" aria-selected="' + on + '" aria-controls="program">' +
+        '<span class="tab-kicker">' + esc(ch.kicker) + '</span>' +
+        '<span class="tab-name">' + esc(ch.short) + '</span>' +
+        '<span class="tab-status">' + status + '</span></button>';
+    }).join('');
+  }
+
+  function renderProgram() {
+    var ch = chapterById(save.tab) || CHAPTERS[0];
+    var next = nextBoard();
+    var unlocked = chapterUnlocked(ch);
+    $('program-title').textContent = ch.kicker + ' · ' + ch.title;
+    $('chapter-sub').textContent = ch.blurb;
+
+    var done = $('chapter-done');
+    done.hidden = !chapterDone(ch);
+    if (!done.hidden) {
+      var after = CHAPTERS.filter(function (c) { return c.unlockAfter === ch.id; })[0];
+      done.innerHTML = '<strong>You finished ' + esc(ch.kicker) + '.</strong>' +
+        '<span>' + (after ? 'Next up: ' + esc(after.title) + '.' : 'More chapters are coming soon.') + '</span>';
     }
 
-    $('program').innerHTML = BOARDS.map(function (b, i) {
+    var locked = $('chapter-locked');
+    locked.hidden = unlocked;
+    if (!unlocked) {
+      var before = chapterById(ch.unlockAfter);
+      locked.textContent = 'Finish ' + before.kicker + ', ' + before.title + ', to open this chapter.';
+    }
+
+    $('program').setAttribute('aria-labelledby', 'tab-' + ch.id);
+    $('program').innerHTML = ch.boards.map(function (b, i) {
+      var key = boardKey(ch, i);
+      var open = boardUnlocked(ch, i);
       var status;
-      if (current && current.level === i) status = '<span class="ticket-status is-progress">In progress</span>';
-      else if (save.cleared[i]) status = '<span class="ticket-status is-cleared">' + ART.icon('star') + 'Cleared</span>';
-      else if (i === next) status = '<span class="ticket-status is-next">Up next</span>';
-      else if (!isUnlocked(i)) status = '<span class="ticket-status is-locked">' + ART.icon('lock') + 'Locked</span>';
+      if (save.games[key]) status = '<span class="ticket-status is-progress">In progress</span>';
+      else if (save.cleared[key]) status = '<span class="ticket-status is-cleared">' + ART.icon('star') + 'Cleared</span>';
+      else if (next && next.key === key) status = '<span class="ticket-status is-next">Up next</span>';
+      else if (!open) status = '<span class="ticket-status is-locked">' + ART.icon('lock') + 'Locked</span>';
       else status = '';
-      var label = 'Board ' + (i + 1) + ', ' + b.name + ', ' + b.tiles + ' tiles' + (isUnlocked(i) ? '' : ', locked');
-      return '<li><button class="ticket" type="button" data-board="' + i + '"' + (isUnlocked(i) ? '' : ' disabled') +
+      var label = 'Board ' + (i + 1) + ', ' + b.name + ', ' + b.tiles + ' tiles' + (open ? '' : ', locked');
+      return '<li><button class="ticket" type="button" data-board="' + key + '"' + (open ? '' : ' disabled') +
         ' aria-label="' + esc(label) + '">' +
         '<span class="ticket-stub" aria-hidden="true">' + (i + 1) + '</span>' +
         '<span class="ticket-body"><span class="ticket-name">' + esc(b.name) + '</span>' +
         '<span class="ticket-meta">' + b.tiles + ' tiles</span></span>' + status + '</button></li>';
     }).join('');
-
-    $('album-count').textContent = cardsCollected() + ' of ' + BOARDS.length;
   }
 
-  function cardArt(i, empty) {
-    var b = BOARDS[i];
+  function renderHub() {
+    renderCta();
+    renderTabs();
+    renderProgram();
+    $('album-count').textContent = cardsCollected() + ' of ' + totalBoards();
+  }
+
+  function cardArt(found, empty) {
     if (empty) {
       return '<div class="card-art card-empty"><span class="empty-mark" aria-hidden="true">?</span></div>';
     }
+    var b = found.board;
     return '<div class="card-art card-' + b.cardColor + '"><div class="card-tile">' + ART.face(b.cardFace) + '</div></div>';
   }
 
   function renderAlbum() {
-    $('album-grid').innerHTML = BOARDS.map(function (b, i) {
-      var card = save.cards[i];
-      if (!card) {
-        return '<button class="album-card" type="button" disabled>' + cardArt(i, true) +
-          '<h3>' + esc(b.name) + '</h3><p>Clear Board ' + (i + 1) + ' to collect this card.</p></button>';
-      }
-      return '<button class="album-card" type="button" data-card="' + i + '">' + cardArt(i) +
-        '<h3>' + esc(b.name) + '</h3><p>' + esc(b.trivia.q) + '</p>' +
-        '<p class="answer-line">' + esc(b.trivia.options[b.trivia.answer]) + '</p></button>';
+    $('album-sections').innerHTML = CHAPTERS.map(function (ch) {
+      var cards = ch.boards.map(function (b, i) {
+        var found = lookup(boardKey(ch, i));
+        if (!save.cards[found.key]) {
+          return '<button class="album-card" type="button" disabled>' + cardArt(found, true) +
+            '<h3>' + esc(b.name) + '</h3><p>Clear Board ' + (i + 1) + ' to collect this card.</p></button>';
+        }
+        return '<button class="album-card" type="button" data-card="' + found.key + '">' + cardArt(found) +
+          '<h3>' + esc(b.name) + '</h3><p>' + esc(b.trivia.q) + '</p>' +
+          '<p class="answer-line">' + esc(b.trivia.options[b.trivia.answer]) + '</p></button>';
+      }).join('');
+      return '<section class="album-section" aria-labelledby="album-' + ch.id + '">' +
+        '<h2 id="album-' + ch.id + '" class="section-label">' + esc(ch.kicker) + ' · ' + esc(ch.title) + '</h2>' +
+        '<div class="album-grid">' + cards + '</div></section>';
     }).join('');
   }
 
@@ -286,19 +437,13 @@
     );
   }
 
-  function newFaces(level) {
-    if (level === 0) return [];
-    var before = BOARDS[level - 1].faces;
-    return BOARDS[level].faces.filter(function (f) { return before.indexOf(f) < 0; });
-  }
-
   function maybeShowIntro() {
-    if (!game) return;
-    var level = game.level;
-    var fresh = newFaces(level);
-    if (save.seenIntro[level] || !fresh.length) return;
+    if (!game || game.spec.kind !== 'chapter') return;
+    var found = lookup(game.spec.key);
+    var fresh = newFaces(found.chapter, found.index);
+    if (save.seenIntro[found.key] || !fresh.length) return;
     openSheet(
-      '<p class="eyebrow">Board ' + (level + 1) + ' · ' + esc(BOARDS[level].name) + '</p>' +
+      '<p class="eyebrow">Board ' + (found.index + 1) + ' · ' + esc(found.board.name) + '</p>' +
       '<h2 id="sheet-title">New tiles tonight</h2>' +
       '<div class="new-tiles">' + fresh.map(function (f) {
         return '<figure>' + miniTile(f, 'big') + '<figcaption>' + esc(C.FACES[f]) + '</figcaption></figure>';
@@ -306,7 +451,7 @@
       '<div class="sheet-actions"><button class="btn btn-primary btn-xl" type="button" data-close data-autofocus>Let’s play</button></div>',
       {
         onClose: function () {
-          save.seenIntro[level] = true;
+          save.seenIntro[found.key] = true;
           persist();
         }
       }
@@ -330,8 +475,8 @@
       '<label class="switch" for="set-sound"><span>Sounds</span>' +
       '<input type="checkbox" id="set-sound"' + (st.sound ? ' checked' : '') + '></label>' +
       '<div class="reset-box">' +
-      '<button class="btn btn-danger" type="button" id="reset-start">Start Chapter 1 over</button>' +
-      '<div class="reset-confirm" id="reset-confirm" hidden><p>This clears your cleared boards and your album cards.</p>' +
+      '<button class="btn btn-danger" type="button" id="reset-start">Start everything over</button>' +
+      '<div class="reset-confirm" id="reset-confirm" hidden><p>This clears every cleared board, your album cards and your calendar stamps.</p>' +
       '<div class="row"><button class="btn btn-ghost" type="button" id="reset-cancel">Keep my progress</button>' +
       '<button class="btn btn-danger" type="button" id="reset-yes">Start over</button></div></div></div>' +
       '<div class="sheet-actions"><button class="btn btn-primary btn-xl" type="button" data-close>Done</button></div>'
@@ -345,11 +490,12 @@
     if (game) render();
   }
 
-  function showCard(i) {
-    var b = BOARDS[i];
+  function showCard(key) {
+    var found = lookup(key);
+    var b = found.board;
     openSheet(
-      '<p class="eyebrow">Board ' + (i + 1) + ' card</p>' +
-      '<h2 id="sheet-title">' + esc(b.name) + '</h2>' + cardArt(i) +
+      '<p class="eyebrow">' + esc(found.chapter.kicker) + ' · Board ' + (found.index + 1) + ' card</p>' +
+      '<h2 id="sheet-title">' + esc(b.name) + '</h2>' + cardArt(found) +
       '<p class="question">' + esc(b.trivia.q) + '</p>' +
       '<p class="verdict">' + esc(b.trivia.options[b.trivia.answer]) + '</p>' +
       '<p>' + esc(b.trivia.fact) + '</p>' +
@@ -357,15 +503,14 @@
     );
   }
 
-  var triviaLevel = null;
+  var trivia = null;
 
-  function showTrivia(level) {
-    triviaLevel = level;
-    var b = BOARDS[level];
-    var tv = b.trivia;
+  function showTrivia(found, result) {
+    trivia = { found: found, result: result };
+    var tv = found.board.trivia;
     openSheet(
-      '<p class="eyebrow">Board ' + (level + 1) + ' cleared</p>' +
-      '<h2 id="sheet-title">Do you remember?</h2>' + cardArt(level) +
+      '<p class="eyebrow">Board ' + (found.index + 1) + ' cleared</p>' +
+      '<h2 id="sheet-title">' + esc(found.chapter.cardTitle || 'Do you remember?') + '</h2>' + cardArt(found) +
       '<p class="question">' + esc(tv.q) + '</p>' +
       '<div class="answers">' + tv.options.map(function (o, i) {
         return '<button class="answer" type="button" data-answer="' + i + '">' + esc(o) + '</button>';
@@ -375,30 +520,36 @@
     );
   }
 
-  function answerTrivia(level, choice) {
-    var b = BOARDS[level];
-    var tv = b.trivia;
+  function answerTrivia(choice) {
+    var found = trivia.found;
+    var tv = found.board.trivia;
     var right = choice === tv.answer;
-    var firstCard = !save.cards[level];
-    if (firstCard) save.cards[level] = { correct: right };
+    var firstCard = !save.cards[found.key];
+    if (firstCard) save.cards[found.key] = { correct: right };
     persist();
-    track('trivia_answer', { board: level + 1, correct: right });
+    track('trivia_answer', { board: found.key, correct: right });
 
-    var buttons = $('sheet').querySelectorAll('.answer');
-    buttons.forEach(function (btn, i) {
+    $('sheet').querySelectorAll('.answer').forEach(function (btn, i) {
       btn.disabled = true;
       if (i === tv.answer) btn.classList.add('right');
       else if (i === choice) btn.classList.add('wrong');
     });
 
-    var last = level === BOARDS.length - 1;
-    var actions = last
-      ? '<p class="verdict">You finished Chapter 1!</p><p>Next up: ' + esc(CHAPTER.next) + '. Coming soon.</p>' +
-        '<button class="btn btn-primary btn-xl" type="button" data-go="album" data-autofocus>See your album</button>' +
-        '<button class="btn btn-ghost" type="button" data-go="hub">Back to the program</button>'
-      : '<button class="btn btn-primary btn-xl" type="button" data-go="board:' + (level + 1) + '" data-autofocus>Next: ' +
-        esc(BOARDS[level + 1].name) + '</button>' +
-        '<button class="btn btn-ghost" type="button" data-go="hub">Back to the program</button>';
+    var ch = found.chapter;
+    var nextKey = found.index + 1 < ch.boards.length ? boardKey(ch, found.index + 1) : null;
+    var actions;
+    if (nextKey) {
+      actions = '<button class="btn btn-primary btn-xl" type="button" data-go="board:' + nextKey + '" data-autofocus>Next: ' +
+        esc(ch.boards[found.index + 1].name) + '</button>';
+    } else {
+      var after = CHAPTERS.filter(function (c) { return c.unlockAfter === ch.id; })[0];
+      actions = '<p class="verdict">You finished ' + esc(ch.kicker) + '!</p>' +
+        (after
+          ? '<p>' + esc(after.kicker) + ', ' + esc(after.title) + ', is now open.</p>' +
+            '<button class="btn btn-primary btn-xl" type="button" data-go="chapter:' + after.id + '" data-autofocus>Open ' + esc(after.kicker) + '</button>'
+          : '<button class="btn btn-primary btn-xl" type="button" data-go="album" data-autofocus>See your album</button>');
+    }
+    actions += '<button class="btn btn-ghost" type="button" data-go="hub">Back to the program</button>';
 
     var reveal = $('reveal');
     reveal.innerHTML =
@@ -425,13 +576,20 @@
     };
   }
 
-  function startBoard(level, resume) {
+  function randomSeed() {
+    return Math.floor(Math.random() * 4294967296);
+  }
+
+  // Starts the board a spec names, or picks up where the player left it.
+  // opts.seed and opts.transposed recreate a particular deal.
+  function startGame(spec, opts) {
+    opts = opts || {};
     showScreen('game');
-    var board = BOARDS[level];
-    var saved = save.current;
-    if (resume && saved && saved.level === level) {
+    var board = resolveBoard(spec);
+    var saved = save.games[spec.key];
+    if (saved && !opts.fresh) {
       game = {
-        level: level,
+        spec: saved.spec,
         transposed: !!saved.transposed,
         seed: saved.seed >>> 0,
         tiles: restoreTiles(saved.tiles),
@@ -440,13 +598,15 @@
         hints: saved.hints || 0,
         rescues: saved.rescues || 0
       };
-      track('board_resume', { board: level + 1 });
+      track('board_resume', { board: spec.key });
     } else {
       var space = boardSpace();
-      var seed = TEST && params.get('seed') ? Number(params.get('seed')) >>> 0 : Math.floor(Math.random() * 4294967296);
-      var transposed = E.chooseOrientation(board.blocks, space.width, space.height, TILE_ASPECT, LAYER_SHIFT, MAX_TILE);
+      var seed = opts.seed !== undefined ? opts.seed >>> 0
+        : TEST && params.get('seed') ? Number(params.get('seed')) >>> 0 : randomSeed();
+      var transposed = opts.transposed !== undefined ? opts.transposed
+        : E.chooseOrientation(board.blocks, space.width, space.height, TILE_ASPECT, LAYER_SHIFT, MAX_TILE);
       game = {
-        level: level,
+        spec: spec,
         transposed: transposed,
         seed: seed,
         tiles: E.deal(board.blocks, board.faces, E.mulberry32(seed), transposed),
@@ -455,15 +615,18 @@
         hints: 0,
         rescues: 0
       };
-      track('board_start', { board: level + 1, tiles: board.tiles });
+      track('board_start', { board: spec.key, tiles: board.tiles });
     }
+    game.board = board;
     game.selected = null;
     game.busy = false;
     game.rng = E.mulberry32((game.seed ^ 0x9e3779b9) + game.moves);
     game.bounds = E.bounds(E.layoutPositions(board.blocks, game.transposed));
+    save.lastPlayed = spec.kind === 'chapter' ? spec.key : save.lastPlayed;
 
-    $('board-label').textContent = 'Board ' + (level + 1) + ' of ' + BOARDS.length;
-    $('board-name').textContent = board.name;
+    var title = gameTitle(game.spec);
+    $('board-label').textContent = title.meta;
+    $('board-name').textContent = title.name;
     buildBoard();
     layoutBoard();
     var bar = $('progress-bar');
@@ -592,7 +755,7 @@
       });
       game.moves++;
       var left = E.remaining(game.tiles);
-      track('match', { board: game.level + 1, tilesLeft: left });
+      track('match', { board: game.spec.key, tilesLeft: left });
       game.busy = false;
       if (left === 0) {
         render();
@@ -606,10 +769,10 @@
   }
 
   function rescue(auto) {
-    var how = E.rescue(game.tiles, BOARDS[game.level].blocks, game.transposed, game.rng);
+    var how = E.rescue(game.tiles, game.board.blocks, game.transposed, game.rng);
     game.rescues++;
     if (how === 'rearranged') layoutBoard();
-    track('rescue', { board: game.level + 1, auto: auto, how: how });
+    track('rescue', { board: game.spec.key, auto: auto, how: how });
     if (auto) {
       toast(how === 'rearranged'
         ? 'No pairs were left, so the last tiles moved to fresh spots.'
@@ -642,7 +805,7 @@
     layoutBoard();
     render();
     persist();
-    track('undo', { board: game.level + 1 });
+    track('undo', { board: game.spec.key });
   }
 
   function onHint() {
@@ -663,20 +826,25 @@
     game.hints++;
     sound('hint');
     toast('These two match. Tap both of them.');
-    track('hint', { board: game.level + 1 });
+    track('hint', { board: game.spec.key });
   }
 
   function boardCleared() {
-    var level = game.level;
-    clearTimeout(toastTimer);
-    $('toast').classList.remove('show');
+    var finished = game;
+    hideToast();
     sound('win');
-    track('board_clear', { board: level + 1, moves: game.moves, hints: game.hints, rescues: game.rescues });
-    save.cleared[level] = true;
-    save.current = null;
+    track('board_clear', { board: finished.spec.key, moves: finished.moves, hints: finished.hints, rescues: finished.rescues });
+    delete save.games[finished.spec.key];
+    if (save.lastPlayed === finished.spec.key) save.lastPlayed = null;
+    var result = { hints: finished.hints, moves: finished.moves, spec: finished.spec, seed: finished.seed, transposed: finished.transposed };
     game = null;
+    if (finished.spec.kind === 'chapter') save.cleared[finished.spec.key] = true;
     persist();
-    setTimeout(function () { showTrivia(level); }, reducedMotion() ? 0 : 350);
+    setTimeout(function () { showResult(result); }, reducedMotion() ? 0 : 350);
+  }
+
+  function showResult(result) {
+    if (result.spec.kind === 'chapter') showTrivia(lookup(result.spec.key), result);
   }
 
   function leaveGame() {
@@ -690,9 +858,16 @@
     if (!action) return;
     if (action === 'hub') leaveGame();
     else if (action === 'album') { if (game) persist(); game = null; showScreen('album'); }
-    else if (action.indexOf('board:') === 0) {
-      var level = Number(action.slice(6));
-      startBoard(level, !!(save.current && save.current.level === level));
+    else if (action.indexOf('chapter:') === 0) {
+      save.tab = action.slice(8);
+      persist();
+      leaveGame();
+    } else if (action.indexOf('board:') === 0) {
+      var key = action.slice(6);
+      var found = lookup(key);
+      if (!found) return;
+      save.tab = found.chapter.id;
+      startGame({ kind: 'chapter', key: key });
     }
   }
 
@@ -703,6 +878,24 @@
     document.querySelectorAll('.back-icon').forEach(function (s) { s.innerHTML = ART.icon('back'); });
 
     $('cta').addEventListener('click', function () { go(this.dataset.action); });
+    $('chapter-tabs').addEventListener('click', function (e) {
+      var tab = e.target.closest('[data-tab]');
+      if (!tab) return;
+      save.tab = tab.dataset.tab;
+      persist();
+      renderTabs();
+      renderProgram();
+      $('tab-' + save.tab).focus();
+    });
+    $('chapter-tabs').addEventListener('keydown', function (e) {
+      if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+      var ids = CHAPTERS.map(function (c) { return c.id; });
+      var i = ids.indexOf(save.tab) + (e.key === 'ArrowRight' ? 1 : -1);
+      save.tab = ids[(i + ids.length) % ids.length];
+      renderTabs();
+      renderProgram();
+      $('tab-' + save.tab).focus();
+    });
     $('program').addEventListener('click', function (e) {
       var btn = e.target.closest('[data-board]');
       if (btn && !btn.disabled) go('board:' + btn.dataset.board);
@@ -712,9 +905,9 @@
     $('open-settings').addEventListener('click', showSettings);
     $('back').addEventListener('click', leaveGame);
     $('album-back').addEventListener('click', function () { showScreen('hub'); });
-    $('album-grid').addEventListener('click', function (e) {
+    $('album-sections').addEventListener('click', function (e) {
       var card = e.target.closest('[data-card]');
-      if (card) showCard(Number(card.dataset.card));
+      if (card) showCard(card.dataset.card);
     });
 
     $('board').addEventListener('click', function (e) {
@@ -732,7 +925,7 @@
       if (t.closest('[data-close]')) { closeSheet(); return; }
       var answer = t.closest('[data-answer]');
       if (answer && !answer.disabled) {
-        answerTrivia(triviaLevel, Number(answer.dataset.answer));
+        answerTrivia(Number(answer.dataset.answer));
         return;
       }
       var goBtn = t.closest('[data-go]');
@@ -755,7 +948,7 @@
         sheetOnClose = null;
         closeSheet();
         showScreen('hub');
-        toast('Chapter 1 starts fresh.');
+        toast('Everything starts fresh.');
       }
     });
     sheet.addEventListener('change', function (e) {
@@ -784,7 +977,7 @@
     if (TEST && params.has('fresh')) save = defaultSave();
     applySettings();
     showScreen('hub');
-    if (data && data.screen === 'game' && save.current) startBoard(save.current.level, true);
+    if (data && data.screen === 'game' && data.spec && save.games[data.spec.key]) startGame(data.spec);
     else if (data && data.screen === 'album') showScreen('album');
   }
 
@@ -795,12 +988,18 @@
       engine: E,
       get game() { return game; },
       get save() { return save; },
+      get trivia() { return trivia; },
       tileButton: function (id) { return $('board').children[id]; }
     };
   }
 
   var hot = window.claude && window.claude.hot;
-  if (hot && hot.snapshot) hot.snapshot(function () { if (game) persist(); return { save: save, screen: screen }; });
+  if (hot && hot.snapshot) {
+    hot.snapshot(function () {
+      if (game) persist();
+      return { save: save, screen: screen, spec: game ? game.spec : null };
+    });
+  }
   if (hot && hot.ready) hot.ready(boot);
   else boot(hot && hot.data);
 })();

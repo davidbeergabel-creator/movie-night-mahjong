@@ -1,4 +1,4 @@
-/* Movie Night Mahjong: Chapter 1, "Saturday at the Drive-In".
+/* Movie Night Mahjong: chapters, boards and trivia.
  * Layout blocks are [x, y, cols, rows, layer] in half-tile units (see engine.js).
  * Trivia names films and facts in text only. No photos, posters, likenesses or lyrics.
  */
@@ -20,10 +20,13 @@
     clapper: 'Clapperboard'
   };
 
-  var CHAPTER = {
-    number: 1,
+  var DRIVE_IN = {
+    id: 'drive-in',
+    kicker: 'Chapter 1',
+    short: 'Drive-In',
     title: 'Saturday at the Drive-In',
-    next: 'Rock ’n’ Roll Diner',
+    blurb: 'Popcorn, convertibles and a double feature under the stars.',
+    mode: 'classic',
     boards: [
       {
         name: 'Opening Night',
@@ -106,12 +109,16 @@
     ]
   };
 
+  var CHAPTERS = [DRIVE_IN];
+
   // Tile count for each board, worked out from its blocks.
-  CHAPTER.boards.forEach(function (b) {
-    b.tiles = b.blocks.reduce(function (n, blk) { return n + blk[2] * blk[3]; }, 0);
+  CHAPTERS.forEach(function (ch) {
+    ch.boards.forEach(function (b) {
+      b.tiles = b.blocks.reduce(function (n, blk) { return n + blk[2] * blk[3]; }, 0);
+    });
   });
 
-  var api = { FACES: FACES, CHAPTER: CHAPTER };
+  var api = { FACES: FACES, CHAPTERS: CHAPTERS };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.MNMContent = api;
 })(typeof window !== 'undefined' ? window : this);
