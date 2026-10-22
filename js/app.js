@@ -98,6 +98,7 @@
       seenIntro: {},
       seenHowTo: false,
       games: {},
+      daily: {},
       lastPlayed: null,
       tab: CHAPTERS[0].id
     };
@@ -125,6 +126,7 @@
     });
     s.seenHowTo = !!data.seenHowTo;
     s.games = plainObject(data.games);
+    s.daily = plainObject(data.daily);
     if (data.current && typeof data.current.level === 'number' && Array.isArray(data.current.tiles)) {
       var key = 'drive-in-' + (data.current.level + 1);
       s.games[key] = Object.assign({}, data.current, { spec: { kind: 'chapter', key: key } });
@@ -182,10 +184,13 @@
 
   // A spec says which board a game is:
   //   { kind: 'chapter', key: 'drive-in-3' }
+  //   { kind: 'daily', key: 'daily-2026-10-22' }
   //   { kind: 'friend', key: 'friend', ref: 'drive-in-3', theirHints: 2 }  (a board someone sent)
   function boardForKey(key) {
     var found = lookup(key);
-    return found ? found.board : null;
+    if (found) return found.board;
+    var day = /^daily-(\d{4}-\d{2}-\d{2})$/.exec(key || '');
+    return day ? dailyBoard(day[1]) : null;
   }
 
   function refOf(spec) {
@@ -197,17 +202,182 @@
   }
 
   function boardName(key) {
-    var found = lookup(key);
-    return found ? found.board.name : '';
+    var board = boardForKey(key);
+    return board ? board.name : '';
   }
 
   function gameTitle(spec) {
     if (spec.kind === 'friend') return { meta: 'From a friend', name: boardName(spec.ref) };
+    if (spec.kind === 'daily') return { meta: 'Daily board', name: boardName(spec.key) };
     var found = lookup(spec.key);
     return {
       meta: found.chapter.kicker + ' · Board ' + (found.index + 1) + ' of ' + found.chapter.boards.length,
       name: found.board.name
     };
+  }
+
+  // ---------- The daily board ----------
+
+  function pad(n) { return (n < 10 ? '0' : '') + n; }
+
+  function dateKey(d) {
+    return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+  }
+
+  function parseDate(key) {
+    var p = key.split('-').map(Number);
+    return new Date(p[0], p[1] - 1, p[2]);
+  }
+
+  function today() {
+    if (TEST && /^\d{4}-\d{2}-\d{2}$/.test(params.get('today') || '')) return params.get('today');
+    return dateKey(new Date());
+  }
+
+  function longDate(key) {
+    return parseDate(key).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+  }
+
+  function hashString(str) {
+    var h = 2166136261;
+    for (var i = 0; i < str.length; i++) {
+      h ^= str.charCodeAt(i);
+      h = Math.imul(h, 16777619);
+    }
+    return h >>> 0;
+  }
+
+  var dailyCache = {};
+
+  // Everyone gets the same board on the same day: the date picks the layout, the tiles and the deal.
+  function dailyBoard(date) {
+    if (dailyCache[date]) return dailyCache[date];
+    var rng = E.mulberry32(hashString('daily:' + date));
+    var layouts = [];
+    var faces = [];
+    CHAPTERS.forEach(function (ch) {
+      if (ch.mode !== 'classic') return;
+      ch.boards.forEach(function (b) {
+        if (b.tiles >= 36) layouts.push(b);
+        b.faces.forEach(function (f) { if (faces.indexOf(f) < 0) faces.push(f); });
+      });
+    });
+    var layout = layouts[Math.floor(rng() * layouts.length)];
+    var count = Math.min(12, Math.max(8, Math.round(layout.tiles / 5)));
+    dailyCache[date] = {
+      name: longDate(date),
+      daily: true,
+      date: date,
+      blocks: layout.blocks,
+      tiles: layout.tiles,
+      faces: E.shuffle(faces.slice(), rng).slice(0, count),
+      seed: hashString('deal:' + date)
+    };
+    return dailyCache[date];
+  }
+
+  function stampsIn(year, month) {
+    var prefix = year + '-' + pad(month + 1) + '-';
+    return Object.keys(save.daily).filter(function (k) { return k.indexOf(prefix) === 0; }).length;
+  }
+
+  function stampsLine(date) {
+    var d = parseDate(date);
+    var n = stampsIn(d.getFullYear(), d.getMonth());
+    var month = d.toLocaleDateString('en-US', { month: 'long' });
+    return n === 0 ? 'No stamps yet in ' + month + '.' : n + (n === 1 ? ' stamp' : ' stamps') + ' in ' + month + '.';
+  }
+
+  function renderDaily() {
+    var box = $('daily');
+    var played = Object.keys(save.cleared).length > 0 || Object.keys(save.daily).length > 0;
+    box.hidden = !played;
+    if (box.hidden) return;
+    var date = today();
+    var key = 'daily-' + date;
+    var done = !!save.daily[date];
+    var start = parseDate(date);
+    start.setDate(start.getDate() - start.getDay());
+    var week = '';
+    for (var i = 0; i < 7; i++) {
+      var d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
+      var k = dateKey(d);
+      var cls = save.daily[k] ? 'stamped' : k === date ? 'today' : k > date ? 'later' : 'open';
+      var label = d.toLocaleDateString('en-US', { weekday: 'long' }) + (save.daily[k] ? ', stamped' : k === date ? ', today' : '');
+      week += '<li class="day ' + cls + '" aria-label="' + esc(label) + '"><span class="day-name" aria-hidden="true">' +
+        d.toLocaleDateString('en-US', { weekday: 'narrow' }) + '</span><span class="day-dot" aria-hidden="true">' +
+        (save.daily[k] ? ART.icon('star') : '') + '</span></li>';
+    }
+    var action = done
+      ? '<span class="daily-done">' + ART.icon('star') + 'Stamped today</span>'
+      : '<button class="btn btn-primary" type="button" data-daily="play">' +
+        (save.games[key] ? 'Resume today’s board' : 'Play today’s board') + '</button>';
+    box.innerHTML =
+      '<div class="daily-head"><p class="eyebrow">Daily board</p>' +
+      '<h2 id="daily-title">' + esc(longDate(date)) + '</h2></div>' +
+      '<ol class="week" aria-label="This week">' + week + '</ol>' +
+      '<p class="daily-note">' + esc(stampsLine(date)) + ' Missing a day is fine.</p>' +
+      '<div class="daily-actions">' + action +
+      '<button class="btn btn-ghost" type="button" data-daily="calendar">Calendar</button></div>';
+  }
+
+  function stamp(date, result) {
+    if (!save.daily[date]) save.daily[date] = { hints: result.hints, moves: result.moves };
+  }
+
+  var calendarMonth = null;
+  var calendarAfter = null;
+
+  function showCalendar(offset) {
+    var base = parseDate(today());
+    if (offset === undefined) {
+      calendarMonth = new Date(base.getFullYear(), base.getMonth(), 1);
+      // Opened from a finished board: closing it should land on the hub, not the empty board.
+      calendarAfter = screen === 'game' ? function () { showScreen('hub'); } : null;
+    }
+    else calendarMonth = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + offset, 1);
+    var y = calendarMonth.getFullYear();
+    var m = calendarMonth.getMonth();
+    var first = new Date(y, m, 1).getDay();
+    var days = new Date(y, m + 1, 0).getDate();
+    var todayKey = today();
+    var cells = '';
+    ['S', 'M', 'T', 'W', 'T', 'F', 'S'].forEach(function (d) { cells += '<span class="cal-head" aria-hidden="true">' + d + '</span>'; });
+    for (var i = 0; i < first; i++) cells += '<span class="cal-day blank"></span>';
+    for (var d = 1; d <= days; d++) {
+      var k = y + '-' + pad(m + 1) + '-' + pad(d);
+      var cls = save.daily[k] ? 'stamped' : k === todayKey ? 'today' : '';
+      cells += '<span class="cal-day ' + cls + '"' + (save.daily[k] ? ' aria-label="' + d + ', stamped"' : '') + '>' +
+        (save.daily[k] ? ART.icon('star') : '') + '<span>' + d + '</span></span>';
+    }
+    var isCurrent = y === base.getFullYear() && m === base.getMonth();
+    var n = stampsIn(y, m);
+    openSheet(
+      '<p class="eyebrow">Daily board</p>' +
+      '<h2 id="sheet-title">Your calendar</h2>' +
+      '<div class="cal-nav"><button class="btn btn-small" type="button" data-cal="-1" aria-label="Previous month">‹</button>' +
+      '<strong>' + calendarMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) + '</strong>' +
+      '<button class="btn btn-small" type="button" data-cal="1" aria-label="Next month"' + (isCurrent ? ' disabled' : '') + '>›</button></div>' +
+      '<div class="calendar">' + cells + '</div>' +
+      '<p>' + (n === 0 ? 'No stamps this month yet.' : n + (n === 1 ? ' stamp' : ' stamps') + ' this month.') +
+      ' Each daily board you clear adds one. There’s no streak to lose.</p>' +
+      '<div class="sheet-actions"><button class="btn btn-primary btn-xl" type="button" data-close data-autofocus>Close</button></div>',
+      { onClose: calendarAfter }
+    );
+  }
+
+  function showDailyResult(result, date) {
+    openSheet(
+      '<p class="eyebrow">Daily board · ' + esc(longDate(date)) + '</p>' +
+      '<h2 id="sheet-title">Stamped!</h2>' +
+      '<div class="big-stamp" aria-hidden="true">' + ART.icon('star') + '</div>' +
+      '<p class="question">You cleared it using ' + esc(hintsText(result.hints)) + '. ' + esc(stampsLine(date)) + '</p>' +
+      '<p>A new board arrives tomorrow.</p>' +
+      shareBox(result, 'Send this board to a friend') +
+      '<div class="sheet-actions"><button class="btn btn-ghost" type="button" data-daily="calendar">See your calendar</button>' +
+      '<button class="btn btn-primary btn-xl" type="button" data-go="hub" data-autofocus>Back to the program</button></div>',
+      { celebrate: true, onClose: function () { showScreen('hub'); } }
+    );
   }
 
   // ---------- Sending a board to a friend ----------
@@ -488,6 +658,7 @@
   }
 
   function renderHub() {
+    renderDaily();
     renderCta();
     var friend = save.games.friend;
     $('friend-resume').hidden = !friend;
@@ -749,6 +920,7 @@
     } else {
       var space = boardSpace();
       var seed = opts.seed !== undefined ? opts.seed >>> 0
+        : board.seed !== undefined ? board.seed
         : TEST && params.get('seed') ? Number(params.get('seed')) >>> 0 : randomSeed();
       var transposed = opts.transposed !== undefined ? opts.transposed
         : E.chooseOrientation(board.blocks, space.width, space.height, TILE_ASPECT, LAYER_SHIFT, MAX_TILE);
@@ -986,12 +1158,15 @@
     var result = { hints: finished.hints, moves: finished.moves, spec: finished.spec, seed: finished.seed, transposed: finished.transposed };
     game = null;
     if (finished.spec.kind === 'chapter') save.cleared[finished.spec.key] = true;
+    var dailyRef = /^daily-(.+)$/.exec(refOf(finished.spec));
+    if (dailyRef) stamp(dailyRef[1], result);
     persist();
     setTimeout(function () { showResult(result); }, reducedMotion() ? 0 : 350);
   }
 
   function showResult(result) {
     if (result.spec.kind === 'chapter') showTrivia(lookup(result.spec.key), result);
+    else if (result.spec.kind === 'daily') showDailyResult(result, result.spec.key.slice(6));
     else if (result.spec.kind === 'friend') showFriendResult(result);
   }
 
@@ -1029,6 +1204,12 @@
 
     $('cta').addEventListener('click', function () { go(this.dataset.action); });
     $('friend-resume').addEventListener('click', function () { go('friend-resume'); });
+    $('daily').addEventListener('click', function (e) {
+      var btn = e.target.closest('[data-daily]');
+      if (!btn) return;
+      if (btn.dataset.daily === 'play') startGame({ kind: 'daily', key: 'daily-' + today() });
+      else showCalendar();
+    });
     $('chapter-tabs').addEventListener('click', function (e) {
       var tab = e.target.closest('[data-tab]');
       if (!tab) return;
@@ -1074,6 +1255,10 @@
     sheet.addEventListener('click', function (e) {
       var t = e.target;
       if (t.closest('[data-close]')) { closeSheet(); return; }
+      var cal = t.closest('[data-cal]');
+      if (cal && !cal.disabled) { showCalendar(Number(cal.dataset.cal)); return; }
+      var dailyBtn = t.closest('[data-daily]');
+      if (dailyBtn) { showCalendar(); return; }
       var share = t.closest('[data-share]');
       if (share) { shareFrom(share.closest('.share')); return; }
       var answer = t.closest('[data-answer]');

@@ -162,7 +162,38 @@ async function checkNoSideScroll(page, where) {
   assert.match(await friend.textContent('#sheet .question'), /You used|Neither of you|You both used/);
   await shot(friend, '06c-friend-result');
   await friend.close();
-  await page.click('[data-go="board:drive-in-2"]');
+  // The daily board appears once a board is cleared. Clearing it stamps the calendar.
+  await page.goto(url('test=1&today=2026-10-22'));
+  await page.waitForSelector('#daily:not([hidden])');
+  assert.match(await page.textContent('#daily-title'), /Thursday, October 22/);
+  await shot(page, '07a-hub-daily');
+  await page.click('[data-daily="play"]');
+  await page.waitForSelector('#game:not([hidden])');
+  assert.strictEqual(await page.textContent('#board-label'), 'Daily board');
+  const dailyDeal = await page.evaluate(() => JSON.stringify(window.__mnm.game.tiles.map((t) => [t.x, t.y, t.z, t.face])));
+  await clearBoard(page);
+  await page.waitForSelector('#sheet-title:has-text("Stamped!")');
+  await shot(page, '07b-daily-stamped');
+  await page.click('#sheet [data-daily]');
+  await page.waitForSelector('#sheet-title:has-text("Your calendar")');
+  assert.strictEqual(await page.$$eval('.cal-day.stamped', (els) => els.length), 1);
+  await shot(page, '07c-calendar');
+  await page.click('[data-close]');
+  await page.waitForSelector('#hub:not([hidden])');
+  assert.match(await page.textContent('#daily'), /Stamped today/);
+  // Everyone gets the same daily board on the same day.
+  const otherPlayer = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const again = await otherPlayer.newPage();
+  await again.goto(url('test=1&fresh=1&today=2026-10-22'));
+  await again.evaluate(() => localStorage.setItem('movie-night-mahjong.v1', JSON.stringify({ cleared: { 'drive-in-1': true }, seenHowTo: true })));
+  await again.goto(url('test=1&today=2026-10-22'));
+  await again.click('[data-daily="play"]');
+  await again.waitForSelector('#game:not([hidden])');
+  const dailyAgain = await again.evaluate(() => JSON.stringify(window.__mnm.game.tiles.map((t) => [t.x, t.y, t.z, t.face])));
+  assert.strictEqual(dailyAgain, dailyDeal, 'same daily board for everyone on the same device size');
+  await otherPlayer.close();
+  await page.goto(url('test=1'));
+  await page.click('[data-board="drive-in-2"]');
 
   // Board 2 opens with its new tiles.
   await page.waitForSelector('#sheet-title:has-text("New tiles tonight")');
