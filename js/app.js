@@ -180,22 +180,165 @@
 
   // ---------- Board kinds ----------
 
-  // A spec says which board a game is: { kind: 'chapter', key: 'drive-in-3' }.
+  // A spec says which board a game is:
+  //   { kind: 'chapter', key: 'drive-in-3' }
+  //   { kind: 'friend', key: 'friend', ref: 'drive-in-3', theirHints: 2 }  (a board someone sent)
+  function boardForKey(key) {
+    var found = lookup(key);
+    return found ? found.board : null;
+  }
+
+  function refOf(spec) {
+    return spec.kind === 'friend' ? spec.ref : spec.key;
+  }
+
   function resolveBoard(spec) {
-    if (!spec) return null;
-    if (spec.kind === 'chapter') {
-      var found = lookup(spec.key);
-      return found && found.board;
-    }
-    return null;
+    return spec ? boardForKey(refOf(spec)) : null;
+  }
+
+  function boardName(key) {
+    var found = lookup(key);
+    return found ? found.board.name : '';
   }
 
   function gameTitle(spec) {
+    if (spec.kind === 'friend') return { meta: 'From a friend', name: boardName(spec.ref) };
     var found = lookup(spec.key);
     return {
       meta: found.chapter.kicker + ' · Board ' + (found.index + 1) + ' of ' + found.chapter.boards.length,
       name: found.board.name
     };
+  }
+
+  // ---------- Sending a board to a friend ----------
+
+  var SITE = 'https://davidbeergabel-creator.github.io/movie-night-mahjong/';
+
+  function siteUrl() {
+    var local = /^https?:$/.test(location.protocol) && /(^|\.)github\.io$|^localhost$|^127\.0\.0\.1$/.test(location.hostname);
+    return local ? location.origin + location.pathname : SITE;
+  }
+
+  function hintsText(n) {
+    return n === 0 ? 'no hints' : n === 1 ? '1 hint' : n + ' hints';
+  }
+
+  // The link holds everything needed to deal the same board: which one, its seed and its orientation.
+  function shareLink(result) {
+    var q = new URLSearchParams({
+      play: refOf(result.spec),
+      seed: String(result.seed),
+      o: result.transposed ? 't' : 'w',
+      h: String(result.hints)
+    });
+    return siteUrl() + '?' + q.toString();
+  }
+
+  function shareBox(result, label) {
+    var name = boardName(refOf(result.spec)) || 'this board';
+    var text = 'I cleared “' + name + '” in Movie Night Mahjong using ' + hintsText(result.hints) +
+      '. Here’s the very same board for you: ' + shareLink(result);
+    return '<div class="share" data-text="' + esc(text) + '">' +
+      '<button class="btn btn-ghost" type="button" data-share>' + esc(label) + '</button>' +
+      '<div class="share-box" hidden><label for="share-text">Copy this and send it in a message or email:</label>' +
+      '<textarea id="share-text" rows="4" readonly>' + esc(text) + '</textarea></div></div>';
+  }
+
+  function shareFrom(box) {
+    var text = box.dataset.text;
+    track('share', { board: game ? game.spec.key : null });
+    function showBox() {
+      var b = box.querySelector('.share-box');
+      b.hidden = false;
+      var area = b.querySelector('textarea');
+      area.focus();
+      area.select();
+    }
+    function copy() {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(function () {
+          toast('Link copied. Paste it into a message or email.');
+        }, showBox);
+      } else {
+        showBox();
+      }
+    }
+    if (navigator.share) {
+      navigator.share({ title: 'Movie Night Mahjong', text: text }).catch(function (err) {
+        if (!err || err.name !== 'AbortError') copy();
+      });
+    } else {
+      copy();
+    }
+  }
+
+  // ?play=drive-in-3&seed=123&o=t&h=2 -> the board a friend sent.
+  function readFriendLink() {
+    var ref = params.get('play');
+    if (!ref || !boardForKey(ref)) return null;
+    var rawSeed = params.get('seed');
+    var seed = Number(rawSeed);
+    if (rawSeed === null || rawSeed === '' || !isFinite(seed)) return null;
+    var h = params.get('h');
+    return {
+      ref: ref,
+      seed: seed >>> 0,
+      transposed: params.get('o') === 't',
+      theirHints: h === null || h === '' || isNaN(parseInt(h, 10)) ? null : Math.max(0, parseInt(h, 10))
+    };
+  }
+
+  function forgetFriendLink() {
+    try {
+      var q = new URLSearchParams(location.search);
+      ['play', 'seed', 'o', 'h'].forEach(function (k) { q.delete(k); });
+      var rest = q.toString();
+      history.replaceState(null, '', location.pathname + (rest ? '?' + rest : '') + location.hash);
+    } catch (e) { /* the address bar keeps the link; nothing else depends on it */ }
+  }
+
+  var invite = null;
+
+  function showInvite(link) {
+    invite = link;
+    var board = boardForKey(link.ref);
+    var theirs = link.theirHints === null ? ''
+      : '<p>Your friend cleared it using ' + hintsText(link.theirHints) + '.</p>';
+    openSheet(
+      '<p class="eyebrow">A friend sent you a board</p>' +
+      '<h2 id="sheet-title">' + esc(board.name) + '</h2>' +
+      '<div class="new-tiles">' + board.faces.slice(0, 3).map(function (f) { return miniTile(f, 'big'); }).join('') + '</div>' +
+      theirs + '<p>You get the very same tiles in the very same places. No timer, as always.</p>' +
+      '<div class="sheet-actions"><button class="btn btn-primary btn-xl" type="button" data-go="friend" data-autofocus>Play it now</button>' +
+      '<button class="btn btn-ghost" type="button" data-close>Not now</button></div>'
+    );
+  }
+
+  function playInvite() {
+    var link = invite;
+    if (!link) return;
+    var spec = { kind: 'friend', key: 'friend', ref: link.ref, theirHints: link.theirHints };
+    var saved = save.games.friend;
+    var same = saved && saved.spec.ref === link.ref && saved.seed === link.seed;
+    track('friend_board_start', { board: link.ref });
+    startGame(spec, { seed: link.seed, transposed: link.transposed, fresh: !same });
+  }
+
+  function showFriendResult(result) {
+    var mine = result.hints;
+    var theirs = result.spec.theirHints;
+    var line;
+    if (theirs === null || theirs === undefined) line = 'You used ' + hintsText(mine) + '.';
+    else if (mine === theirs) line = mine === 0 ? 'Neither of you needed a hint.' : 'You both used ' + hintsText(mine) + '.';
+    else line = 'You used ' + hintsText(mine) + '. Your friend used ' + hintsText(theirs) + '.';
+    openSheet(
+      '<p class="eyebrow">Your friend’s board</p>' +
+      '<h2 id="sheet-title">Board cleared!</h2>' +
+      '<p class="question">' + esc(line) + '</p>' +
+      shareBox(result, 'Send it back to your friend') +
+      '<div class="sheet-actions"><button class="btn btn-primary btn-xl" type="button" data-go="hub" data-autofocus>Back to the program</button></div>',
+      { celebrate: true, onClose: function () { showScreen('hub'); } }
+    );
   }
 
   // ---------- Sound ----------
@@ -346,6 +489,9 @@
 
   function renderHub() {
     renderCta();
+    var friend = save.games.friend;
+    $('friend-resume').hidden = !friend;
+    if (friend) $('friend-resume').textContent = 'Finish the board from your friend: ' + boardName(friend.spec.ref);
     renderTabs();
     renderProgram();
     $('album-count').textContent = cardsCollected() + ' of ' + totalBoards();
@@ -556,7 +702,8 @@
       '<p class="verdict">' + (right ? 'That’s right!' : 'It was ' + esc(tv.options[tv.answer]) + '.') + '</p>' +
       '<p>' + esc(tv.fact) + '</p>' +
       '<p class="collected">' + (firstCard ? 'Card added to your Movie Night album.' : 'This card is already in your album.') + '</p>' +
-      '<div class="sheet-actions">' + actions + '</div>';
+      '<div class="sheet-actions">' + actions + '</div>' +
+      shareBox(trivia.result, 'Send this board to a friend');
     reveal.hidden = false;
     sheetLocked = false;
     var focus = reveal.querySelector('[data-autofocus]');
@@ -845,6 +992,7 @@
 
   function showResult(result) {
     if (result.spec.kind === 'chapter') showTrivia(lookup(result.spec.key), result);
+    else if (result.spec.kind === 'friend') showFriendResult(result);
   }
 
   function leaveGame() {
@@ -858,6 +1006,8 @@
     if (!action) return;
     if (action === 'hub') leaveGame();
     else if (action === 'album') { if (game) persist(); game = null; showScreen('album'); }
+    else if (action === 'friend') playInvite();
+    else if (action === 'friend-resume' && save.games.friend) startGame(save.games.friend.spec);
     else if (action.indexOf('chapter:') === 0) {
       save.tab = action.slice(8);
       persist();
@@ -878,6 +1028,7 @@
     document.querySelectorAll('.back-icon').forEach(function (s) { s.innerHTML = ART.icon('back'); });
 
     $('cta').addEventListener('click', function () { go(this.dataset.action); });
+    $('friend-resume').addEventListener('click', function () { go('friend-resume'); });
     $('chapter-tabs').addEventListener('click', function (e) {
       var tab = e.target.closest('[data-tab]');
       if (!tab) return;
@@ -923,6 +1074,8 @@
     sheet.addEventListener('click', function (e) {
       var t = e.target;
       if (t.closest('[data-close]')) { closeSheet(); return; }
+      var share = t.closest('[data-share]');
+      if (share) { shareFrom(share.closest('.share')); return; }
       var answer = t.closest('[data-answer]');
       if (answer && !answer.disabled) {
         answerTrivia(Number(answer.dataset.answer));
@@ -977,7 +1130,12 @@
     if (TEST && params.has('fresh')) save = defaultSave();
     applySettings();
     showScreen('hub');
-    if (data && data.screen === 'game' && data.spec && save.games[data.spec.key]) startGame(data.spec);
+    var link = readFriendLink();
+    if (link) {
+      forgetFriendLink();
+      track('friend_link_open', { board: link.ref });
+      showInvite(link);
+    } else if (data && data.screen === 'game' && data.spec && save.games[data.spec.key]) startGame(data.spec);
     else if (data && data.screen === 'album') showScreen('album');
   }
 

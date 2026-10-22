@@ -39,10 +39,9 @@ async function playPair(page) {
 
 async function clearBoard(page) {
   for (let i = 0; i < 200; i++) {
-    if (await page.isVisible('.answers')) return;
     if (!(await playPair(page))) break;
   }
-  await page.waitForSelector('.answers');
+  await page.waitForSelector('#overlay:not([hidden]) .celebrate, .sheet.celebrate');
 }
 
 async function answerTrivia(page, right) {
@@ -62,7 +61,11 @@ async function checkNoSideScroll(page, where) {
 (async () => {
   const browser = await chromium.launch();
   const errors = [];
-  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2 });
+  const ctx = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    deviceScaleFactor: 2,
+    permissions: ['clipboard-read', 'clipboard-write']
+  });
   const page = await ctx.newPage();
   page.on('pageerror', (e) => errors.push(e.message));
   page.on('console', (m) => { if (m.type() === 'error' && !/fonts\.g/.test(m.text())) errors.push(m.text()); });
@@ -91,6 +94,7 @@ async function checkNoSideScroll(page, where) {
   await page.click('[data-close]');
   await page.waitForSelector('#overlay', { state: 'hidden' });
   await shot(page, '03-board-1');
+  const firstDeal = await page.evaluate(() => JSON.stringify(window.__mnm.game.tiles.map((t) => [t.x, t.y, t.z, t.face])));
 
   // A blocked tile shakes and explains itself.
   const blocked = await page.evaluate(() => {
@@ -133,6 +137,31 @@ async function checkNoSideScroll(page, where) {
   await shot(page, '05-trivia');
   await answerTrivia(page, false);
   await shot(page, '06-trivia-answered');
+
+  // Send the board to a friend: the link is copied, and opening it deals the very same tiles.
+  await page.click('[data-share]');
+  await page.waitForSelector('#toast.show');
+  assert.match(await page.textContent('#toast'), /Link copied/);
+  const message = await page.evaluate(() => navigator.clipboard.readText());
+  assert.match(message, /Opening Night/);
+  const link = new URL(message.match(/https:\S+/)[0]);
+  assert.strictEqual(link.origin + link.pathname, 'https://davidbeergabel-creator.github.io/movie-night-mahjong/');
+  const friend = await ctx.newPage();
+  friend.on('pageerror', (e) => errors.push(e.message));
+  await friend.goto(url('test=1&' + link.searchParams.toString()));
+  await friend.waitForSelector('#sheet-title:has-text("Opening Night")');
+  assert.match(await friend.textContent('#sheet'), /cleared it using 2 hints|cleared it using \d+ hints?|no hints/);
+  await shot(friend, '06b-friend-invite');
+  await friend.click('[data-go="friend"]');
+  await friend.waitForSelector('#game:not([hidden])');
+  const friendDeal = await friend.evaluate(() => JSON.stringify(window.__mnm.game.tiles.map((t) => [t.x, t.y, t.z, t.face])));
+  assert.strictEqual(friendDeal, firstDeal, 'the friend gets the same deal');
+  assert.ok(!(await friend.evaluate(() => location.search.includes('play='))), 'the link is cleared from the address bar');
+  await clearBoard(friend);
+  await friend.waitForSelector('#sheet-title:has-text("Board cleared!")');
+  assert.match(await friend.textContent('#sheet .question'), /You used|Neither of you|You both used/);
+  await shot(friend, '06c-friend-result');
+  await friend.close();
   await page.click('[data-go="board:drive-in-2"]');
 
   // Board 2 opens with its new tiles.
