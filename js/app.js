@@ -103,7 +103,8 @@
       games: {},
       daily: {},
       lastPlayed: null,
-      tab: CHAPTERS[0].id
+      tab: CHAPTERS[0].id,
+      albumTab: CHAPTERS[0].id
     };
   }
 
@@ -142,6 +143,7 @@
     });
     if (typeof data.lastPlayed === 'string') s.lastPlayed = data.lastPlayed;
     if (typeof data.tab === 'string' && chapterById(data.tab)) s.tab = data.tab;
+    if (typeof data.albumTab === 'string' && chapterById(data.albumTab)) s.albumTab = data.albumTab;
     return s;
   }
 
@@ -156,7 +158,7 @@
 
   var save = defaultSave();
   var game = null;
-  var screen = 'hub';
+  var view = 'home';
 
   function persist() {
     if (game) save.games[game.spec.key] = snapshotGame();
@@ -210,12 +212,23 @@
     return board ? board.name : '';
   }
 
-  function gameTitle(spec) {
-    if (spec.kind === 'friend') return { meta: 'From a friend', name: boardName(spec.ref) };
-    if (spec.kind === 'daily') return { meta: 'Daily board', name: boardName(spec.key) };
-    var found = lookup(spec.key);
+  function shortDate(date) {
+    return parseDate(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  }
+
+  // The three counters at the top of the board, and the name under them.
+  function gameStats(spec) {
+    var ref = refOf(spec);
+    var friend = spec.kind === 'friend';
+    var found = lookup(ref);
+    if (!found) {
+      var date = ref.slice(6);
+      return { kind: friend ? 'Friend' : 'Daily', value: shortDate(date), name: (friend ? 'A friend’s daily board · ' : '') + longDate(date) };
+    }
+    var level = levelNumber(ref);
     return {
-      meta: found.chapter.kicker + ' · Board ' + (found.index + 1) + ' of ' + found.chapter.boards.length,
+      kind: friend ? 'Friend' : found.chapter.bonus ? 'Chess' : 'Level',
+      value: String(level || found.index + 1),
       name: found.board.name
     };
   }
@@ -292,82 +305,44 @@
     return n === 0 ? 'No stamps yet in ' + month + '.' : n + (n === 1 ? ' stamp' : ' stamps') + ' in ' + month + '.';
   }
 
-  function renderDaily() {
-    var box = $('daily');
-    var played = Object.keys(save.cleared).length > 0 || Object.keys(save.daily).length > 0;
-    box.hidden = !played;
-    if (box.hidden) return;
-    var date = today();
-    var key = 'daily-' + date;
-    var done = !!save.daily[date];
-    var start = parseDate(date);
-    start.setDate(start.getDate() - start.getDay());
-    var week = '';
-    for (var i = 0; i < 7; i++) {
-      var d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
-      var k = dateKey(d);
-      var cls = save.daily[k] ? 'stamped' : k === date ? 'today' : k > date ? 'later' : 'open';
-      var label = d.toLocaleDateString('en-US', { weekday: 'long' }) + (save.daily[k] ? ', stamped' : k === date ? ', today' : '');
-      week += '<li class="day ' + cls + '" aria-label="' + esc(label) + '"><span class="day-name" aria-hidden="true">' +
-        d.toLocaleDateString('en-US', { weekday: 'narrow' }) + '</span><span class="day-dot" aria-hidden="true">' +
-        (save.daily[k] ? ART.icon('star') : '') + '</span></li>';
-    }
-    var action = done
-      ? '<span class="daily-done">' + ART.icon('star') + 'Stamped today</span>'
-      : '<button class="btn btn-primary" type="button" data-daily="play">' +
-        (save.games[key] ? 'Resume today’s board' : 'Play today’s board') + '</button>';
-    box.innerHTML =
-      '<div class="daily-head"><p class="eyebrow">Daily board</p>' +
-      '<h2 id="daily-title">' + esc(longDate(date)) + '</h2></div>' +
-      '<ol class="week" aria-label="This week">' + week + '</ol>' +
-      '<p class="daily-note">' + esc(stampsLine(date)) + ' Missing a day is fine.</p>' +
-      '<div class="daily-actions">' + action +
-      '<button class="btn btn-ghost" type="button" data-daily="calendar">Calendar</button></div>';
-  }
-
   function stamp(date, result) {
     if (!save.daily[date]) save.daily[date] = { hints: result.hints, moves: result.moves };
   }
 
   var calendarMonth = null;
-  var calendarAfter = null;
 
-  function showCalendar(offset) {
-    var base = parseDate(today());
-    if (offset === undefined) {
-      calendarMonth = new Date(base.getFullYear(), base.getMonth(), 1);
-      // Opened from a finished board: closing it should land on the hub, not the empty board.
-      calendarAfter = screen === 'game' ? function () { showScreen('hub'); } : null;
-    }
-    else calendarMonth = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + offset, 1);
+  function renderDailyView() {
+    var date = today();
+    var key = 'daily-' + date;
+    var base = parseDate(date);
+    if (!calendarMonth) calendarMonth = new Date(base.getFullYear(), base.getMonth(), 1);
     var y = calendarMonth.getFullYear();
     var m = calendarMonth.getMonth();
+    $('daily-title').textContent = longDate(date);
+    $('cal-month').textContent = calendarMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    $('cal-next').disabled = y === base.getFullYear() && m === base.getMonth();
     var first = new Date(y, m, 1).getDay();
     var days = new Date(y, m + 1, 0).getDate();
-    var todayKey = today();
     var cells = '';
     ['S', 'M', 'T', 'W', 'T', 'F', 'S'].forEach(function (d) { cells += '<span class="cal-head" aria-hidden="true">' + d + '</span>'; });
-    for (var i = 0; i < first; i++) cells += '<span class="cal-day blank"></span>';
-    for (var d = 1; d <= days; d++) {
+    var weeks = Math.ceil((first + days) / 7);
+    $('calendar').style.gridTemplateRows = 'auto repeat(' + weeks + ', minmax(0, 1fr))';
+    for (var i = 0; i < weeks * 7; i++) {
+      var d = i - first + 1;
+      if (d < 1 || d > days) { cells += '<span class="cal-day blank"></span>'; continue; }
       var k = y + '-' + pad(m + 1) + '-' + pad(d);
-      var cls = save.daily[k] ? 'stamped' : k === todayKey ? 'today' : '';
+      var cls = save.daily[k] ? 'stamped' : k === date ? 'today' : '';
       cells += '<span class="cal-day ' + cls + '"' + (save.daily[k] ? ' aria-label="' + d + ', stamped"' : '') + '>' +
         (save.daily[k] ? ART.icon('star') : '') + '<span>' + d + '</span></span>';
     }
-    var isCurrent = y === base.getFullYear() && m === base.getMonth();
+    $('calendar').innerHTML = cells;
     var n = stampsIn(y, m);
-    openSheet(
-      '<p class="eyebrow">Daily board</p>' +
-      '<h2 id="sheet-title">Your calendar</h2>' +
-      '<div class="cal-nav"><button class="btn btn-small" type="button" data-cal="-1" aria-label="Previous month">‹</button>' +
-      '<strong>' + calendarMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) + '</strong>' +
-      '<button class="btn btn-small" type="button" data-cal="1" aria-label="Next month"' + (isCurrent ? ' disabled' : '') + '>›</button></div>' +
-      '<div class="calendar">' + cells + '</div>' +
-      '<p>' + (n === 0 ? 'No stamps this month yet.' : n + (n === 1 ? ' stamp' : ' stamps') + ' this month.') +
-      ' Each daily board you clear adds one. There’s no streak to lose.</p>' +
-      '<div class="sheet-actions"><button class="btn btn-primary btn-xl" type="button" data-close data-autofocus>Close</button></div>',
-      { onClose: calendarAfter }
-    );
+    $('daily-note').textContent = (n === 0 ? 'No stamps yet this month.' : n + (n === 1 ? ' stamp' : ' stamps') + ' this month.') +
+      ' A new board every day, and no streak to lose.';
+    $('daily-action').innerHTML = save.daily[date]
+      ? '<p class="stamped-chip">' + ART.icon('star') + 'Stamped today. See you tomorrow!</p>'
+      : '<button id="daily-play" class="btn btn-primary btn-xl" type="button">' +
+        (save.games[key] ? 'Resume today’s board' : 'Play today’s board') + '</button>';
   }
 
   function showDailyResult(result, date) {
@@ -378,9 +353,9 @@
       '<p class="question">You cleared it using ' + esc(hintsText(result.hints)) + '. ' + esc(stampsLine(date)) + '</p>' +
       '<p>A new board arrives tomorrow.</p>' +
       shareBox(result, 'Send this board to a friend') +
-      '<div class="sheet-actions"><button class="btn btn-ghost" type="button" data-daily="calendar">See your calendar</button>' +
-      '<button class="btn btn-primary btn-xl" type="button" data-go="hub" data-autofocus>Back to the program</button></div>',
-      { celebrate: true, onClose: function () { showScreen('hub'); } }
+      '<div class="sheet-actions"><button class="btn btn-primary btn-xl" type="button" data-go="home" data-autofocus>Home</button>' +
+      '<button class="btn btn-ghost" type="button" data-go="daily">See your calendar</button></div>',
+      { celebrate: true, onClose: function () { showView('home'); } }
     );
   }
 
@@ -510,8 +485,8 @@
       '<h2 id="sheet-title">Board cleared!</h2>' +
       '<p class="question">' + esc(line) + '</p>' +
       shareBox(result, 'Send it back to your friend') +
-      '<div class="sheet-actions"><button class="btn btn-primary btn-xl" type="button" data-go="hub" data-autofocus>Back to the program</button></div>',
-      { celebrate: true, onClose: function () { showScreen('hub'); } }
+      '<div class="sheet-actions"><button class="btn btn-primary btn-xl" type="button" data-go="home" data-autofocus>Home</button></div>',
+      { celebrate: true, onClose: function () { showView('home'); } }
     );
   }
 
@@ -597,10 +572,26 @@
 
   // ---------- Screens ----------
 
-  function showScreen(name) {
-    screen = name;
-    ['hub', 'game', 'album'].forEach(function (s) { $(s).hidden = s !== name; });
-    if (name === 'hub') renderHub();
+  var VIEWS = ['home', 'daily', 'chapters', 'album', 'game'];
+  var clockTimer = null;
+
+  function showView(name) {
+    view = name;
+    VIEWS.forEach(function (v) { $(v).hidden = v !== name; });
+    $('tabbar').hidden = name === 'game';
+    document.querySelectorAll('#tabbar .tab').forEach(function (t) {
+      var on = t.dataset.view === name;
+      t.classList.toggle('on', on);
+      if (on) t.setAttribute('aria-current', 'page');
+      else t.removeAttribute('aria-current');
+    });
+    clearInterval(clockTimer);
+    if (name === 'home') {
+      renderHome();
+      clockTimer = setInterval(updateClock, 1000);
+    }
+    if (name === 'daily') renderDailyView();
+    if (name === 'chapters') renderChapters();
     if (name === 'album') renderAlbum();
   }
 
@@ -608,59 +599,132 @@
     return CHAPTERS.reduce(function (n, ch) { return n + ch.boards.length; }, 0);
   }
 
-  function cardsCollected() {
-    return Object.keys(save.cards).filter(function (k) { return save.cards[k] && lookup(k); }).length;
+  function cardsCollected(chapter) {
+    return Object.keys(save.cards).filter(function (k) {
+      var found = save.cards[k] && lookup(k);
+      return found && (!chapter || found.chapter === chapter);
+    }).length;
   }
 
-  function renderCta() {
-    var cta = $('cta');
-    var last = save.lastPlayed && save.games[save.lastPlayed] && lookup(save.lastPlayed);
-    var next = nextBoard();
-    if (last) {
-      cta.textContent = 'Resume Board ' + (last.index + 1) + ': ' + last.board.name;
-      cta.dataset.action = 'board:' + last.key;
-    } else if (!next) {
-      cta.textContent = 'See your Movie Night album';
-      cta.dataset.action = 'album';
-    } else if (next.key === boardKey(CHAPTERS[0], 0)) {
-      cta.textContent = 'Start the show';
-      cta.dataset.action = 'board:' + next.key;
-    } else {
-      cta.textContent = 'Play Board ' + (next.index + 1) + ': ' + next.board.name;
-      cta.dataset.action = 'board:' + next.key;
+  // Boards on the main path are numbered as levels: Chapter 1 is Levels 1-6, Chapter 2 Levels 7-12.
+  function levelNumber(key) {
+    var n = 0;
+    for (var c = 0; c < CHAPTERS.length; c++) {
+      var ch = CHAPTERS[c];
+      if (ch.bonus) continue;
+      for (var i = 0; i < ch.boards.length; i++) {
+        n++;
+        if (boardKey(ch, i) === key) return n;
+      }
     }
+    return 0;
   }
 
-  function renderTabs() {
-    var tabs = $('chapter-tabs');
-    tabs.hidden = CHAPTERS.length < 2;
-    tabs.innerHTML = CHAPTERS.map(function (ch) {
-      var on = ch.id === save.tab;
-      var status = chapterUnlocked(ch)
-        ? chapterCleared(ch) + ' of ' + ch.boards.length
-        : ART.icon('lock') + 'Locked';
-      return '<button class="chapter-tab' + (on ? ' on' : '') + '" type="button" role="tab" id="tab-' + ch.id +
-        '" data-tab="' + ch.id + '" aria-selected="' + on + '" aria-controls="program">' +
-        '<span class="tab-kicker">' + esc(ch.kicker) + '</span>' +
-        '<span class="tab-name">' + esc(ch.short) + '</span>' +
-        '<span class="tab-status">' + status + '</span></button>';
-    }).join('');
+  function boardLabel(found) {
+    var level = levelNumber(found.key);
+    return level ? 'Level ' + level : found.chapter.short + ' ' + (found.index + 1);
   }
 
-  function renderProgram() {
+  // What the big button on the home screen plays.
+  function homePlay() {
+    var last = save.lastPlayed && save.games[save.lastPlayed] && lookup(save.lastPlayed);
+    var target = last || nextBoard();
+    if (target) {
+      return {
+        label: boardLabel(target),
+        sub: (last ? 'Resume · ' : '') + target.chapter.title + ' · ' + target.board.name,
+        action: 'board:' + target.key,
+        chapter: target.chapter
+      };
+    }
+    if (!save.daily[today()]) {
+      return { label: 'Today’s board', sub: 'Every level is cleared. Here is today’s daily board.', action: 'daily-play', chapter: CHAPTERS[0] };
+    }
+    var chess = chapterById('chess');
+    return { label: 'Chess Night', sub: 'Every level is cleared and today is stamped.', action: 'chapter:chess', chapter: chess };
+  }
+
+  function renderHome() {
+    var play = homePlay();
+    var btn = $('play-btn');
+    btn.textContent = play.label;
+    btn.dataset.action = play.action;
+    $('play-sub').textContent = play.sub;
+    var stars = Object.keys(save.cleared).length;
+    $('stars-count').textContent = stars;
+    $('stars-chip').setAttribute('aria-label', stars + (stars === 1 ? ' board' : ' boards') + ' cleared. Open chapters.');
+    var emblem = $('emblem');
+    if (emblem.dataset.face !== play.chapter.emblem) {
+      emblem.innerHTML = ART.emblem(play.chapter.emblem);
+      emblem.dataset.face = play.chapter.emblem;
+    }
+    renderWidgets();
+  }
+
+  function widget(opts) {
+    return '<button class="widget" type="button" data-go="' + opts.go + '" aria-label="' + esc(opts.aria) + '">' +
+      (opts.dot ? '<span class="dot" aria-hidden="true"></span>' : '') +
+      '<span class="widget-art" aria-hidden="true">' + opts.art + '</span>' +
+      '<span class="widget-label">' + esc(opts.label) + '</span>' +
+      '<span class="widget-sub"' + (opts.id ? ' id="' + opts.id + '"' : '') + '>' + esc(opts.sub) + '</span></button>';
+  }
+
+  // Side badges, like the event icons on Vita's home screen. They appear after the first board.
+  function renderWidgets() {
+    var played = Object.keys(save.cleared).length > 0 || Object.keys(save.daily).length > 0;
+    var left = '';
+    var right = '';
+    if (played) {
+      var date = today();
+      var done = !!save.daily[date];
+      right += widget({
+        go: 'daily', label: 'Daily', art: String(parseDate(date).getDate()), dot: !done, id: 'clock', sub: done ? '' : 'New',
+        aria: done ? 'Daily board, stamped today' : 'Daily board, a new board is ready'
+      });
+      var chess = chapterById('chess');
+      if (chess && chapterUnlocked(chess)) {
+        left += widget({
+          go: 'chapter:chess', label: 'Chess', art: ART.face('knight'),
+          sub: chapterCleared(chess) + ' of ' + chess.boards.length, aria: 'Chess Night, bonus chapter'
+        });
+      }
+    }
+    if (save.games.friend) {
+      var fb = boardForKey(save.games.friend.spec.ref);
+      left += widget({ go: 'friend-resume', label: 'Friend', art: ART.face(fb.faces[0]), sub: 'Resume', aria: 'Finish the board from your friend' });
+    }
+    $('widgets-left').innerHTML = left;
+    $('widgets-right').innerHTML = right;
+    updateClock();
+  }
+
+  // Once today is stamped, the daily badge counts down to the next board.
+  function updateClock() {
+    var el = document.getElementById('clock');
+    if (!el || !save.daily[today()]) return;
+    var now = new Date();
+    var next = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+    var secs = Math.max(0, Math.floor((next - now) / 1000));
+    el.textContent = Math.floor(secs / 3600) + ':' + pad(Math.floor(secs / 60) % 60) + ':' + pad(secs % 60);
+  }
+
+  function chapterTab(ch, on, attr, status) {
+    return '<button class="seg-tab' + (on ? ' on' : '') + '" type="button" role="tab" ' + attr + ' aria-selected="' + on + '">' +
+      '<span class="tab-kicker">' + esc(ch.kicker) + '</span>' +
+      '<span class="tab-name">' + esc(ch.short) + '</span>' +
+      '<span class="tab-status">' + status + '</span></button>';
+  }
+
+  function renderChapters() {
     var ch = chapterById(save.tab) || CHAPTERS[0];
+    $('chapter-tabs').innerHTML = CHAPTERS.map(function (c) {
+      var status = chapterUnlocked(c) ? chapterCleared(c) + ' of ' + c.boards.length : ART.icon('lock') + 'Locked';
+      return chapterTab(c, c === ch, 'id="tab-' + c.id + '" data-tab="' + c.id + '" aria-controls="program"', status);
+    }).join('');
     var next = nextBoard();
     var unlocked = chapterUnlocked(ch);
-    $('program-title').textContent = ch.kicker + ' · ' + ch.title;
+    $('program-title').textContent = ch.title;
     $('chapter-sub').textContent = ch.blurb;
-
-    var done = $('chapter-done');
-    done.hidden = !chapterDone(ch);
-    if (!done.hidden) {
-      var after = CHAPTERS.filter(function (c) { return c.unlockAfter === ch.id; })[0];
-      done.innerHTML = '<strong>You finished ' + esc(ch.kicker) + '.</strong>' +
-        '<span>' + (after ? 'Next up: ' + esc(after.title) + '.' : 'More chapters are coming soon.') + '</span>';
-    }
 
     var locked = $('chapter-locked');
     locked.hidden = unlocked;
@@ -668,35 +732,36 @@
       var before = chapterById(ch.unlockAfter);
       locked.textContent = 'Finish ' + before.kicker + ', ' + before.title + ', to open this chapter.';
     }
+    var done = $('chapter-done');
+    done.hidden = !chapterDone(ch);
+    if (!done.hidden) {
+      var after = CHAPTERS.filter(function (c) { return c.unlockAfter === ch.id && !c.bonus; })[0];
+      done.textContent = 'You finished this chapter.' + (after ? ' Next up: ' + after.title + '.' : '');
+    }
+    $('chess-howto').hidden = !(ch.mode === 'chess' && unlocked);
 
     $('program').setAttribute('aria-labelledby', 'tab-' + ch.id);
     $('program').innerHTML = ch.boards.map(function (b, i) {
-      var key = boardKey(ch, i);
+      var found = lookup(boardKey(ch, i));
+      var key = found.key;
       var open = boardUnlocked(ch, i);
+      var cleared = !!save.cleared[key];
+      var isNext = next && next.key === key;
       var status;
-      if (save.games[key]) status = '<span class="ticket-status is-progress">In progress</span>';
-      else if (save.cleared[key]) status = '<span class="ticket-status is-cleared">' + ART.icon('star') + 'Cleared</span>';
-      else if (next && next.key === key) status = '<span class="ticket-status is-next">Up next</span>';
-      else if (!open) status = '<span class="ticket-status is-locked">' + ART.icon('lock') + 'Locked</span>';
-      else status = '';
-      var label = 'Board ' + (i + 1) + ', ' + b.name + ', ' + b.tiles + ' tiles' + (open ? '' : ', locked');
-      return '<li><button class="ticket" type="button" data-board="' + key + '"' + (open ? '' : ' disabled') +
-        ' aria-label="' + esc(label) + '">' +
-        '<span class="ticket-stub" aria-hidden="true">' + (i + 1) + '</span>' +
-        '<span class="ticket-body"><span class="ticket-name">' + esc(b.name) + '</span>' +
-        '<span class="ticket-meta">' + b.tiles + ' tiles</span></span>' + status + '</button></li>';
+      if (save.games[key]) status = 'In progress';
+      else if (cleared) status = ART.icon('star') + 'Cleared';
+      else if (isNext) status = 'Up next';
+      else if (!open) status = ART.icon('lock') + 'Locked';
+      else status = b.tiles + (ch.mode === 'chess' ? ' pieces' : ' tiles');
+      var level = levelNumber(key);
+      var label = boardLabel(found) + ', ' + b.name + (cleared ? ', cleared' : open ? '' : ', locked');
+      return '<li><button class="board-card' + (cleared ? ' cleared' : '') + (isNext ? ' next' : '') + '" type="button" data-board="' + key + '"' +
+        (open ? '' : ' disabled') + ' aria-label="' + esc(label) + '">' +
+        '<span class="board-num" aria-hidden="true">' + (level || i + 1) + '</span>' +
+        '<span class="board-art' + (ch.mode === 'chess' ? ' square' : '') + '" aria-hidden="true">' + ART.face(b.cardFace) + '</span>' +
+        '<span class="board-name-line">' + esc(b.name) + '</span>' +
+        '<span class="board-status">' + status + '</span></button></li>';
     }).join('');
-  }
-
-  function renderHub() {
-    renderDaily();
-    renderCta();
-    var friend = save.games.friend;
-    $('friend-resume').hidden = !friend;
-    if (friend) $('friend-resume').textContent = 'Finish the board from your friend: ' + boardName(friend.spec.ref);
-    renderTabs();
-    renderProgram();
-    $('album-count').textContent = cardsCollected() + ' of ' + totalBoards();
   }
 
   function cardArt(found, empty) {
@@ -708,20 +773,22 @@
   }
 
   function renderAlbum() {
-    $('album-sections').innerHTML = CHAPTERS.map(function (ch) {
-      var cards = ch.boards.map(function (b, i) {
-        var found = lookup(boardKey(ch, i));
-        if (!save.cards[found.key]) {
-          return '<button class="album-card" type="button" disabled>' + cardArt(found, true) +
-            '<h3>' + esc(b.name) + '</h3><p>Clear Board ' + (i + 1) + ' to collect this card.</p></button>';
-        }
-        return '<button class="album-card" type="button" data-card="' + found.key + '">' + cardArt(found) +
-          '<h3>' + esc(b.name) + '</h3><p>' + esc(b.trivia.q) + '</p>' +
-          '<p class="answer-line">' + esc(b.trivia.options[b.trivia.answer]) + '</p></button>';
-      }).join('');
-      return '<section class="album-section" aria-labelledby="album-' + ch.id + '">' +
-        '<h2 id="album-' + ch.id + '" class="section-label">' + esc(ch.kicker) + ' · ' + esc(ch.title) + '</h2>' +
-        '<div class="album-grid">' + cards + '</div></section>';
+    var ch = chapterById(save.albumTab) || CHAPTERS[0];
+    var total = cardsCollected();
+    $('album-count').textContent = total + ' of ' + totalBoards() + ' cards collected';
+    $('album-tabs').innerHTML = CHAPTERS.map(function (c) {
+      return chapterTab(c, c === ch, 'id="album-tab-' + c.id + '" data-album-tab="' + c.id + '" aria-controls="album-grid"',
+        cardsCollected(c) + ' of ' + c.boards.length);
+    }).join('');
+    $('album-grid').setAttribute('aria-labelledby', 'album-tab-' + ch.id);
+    $('album-grid').innerHTML = ch.boards.map(function (b, i) {
+      var found = lookup(boardKey(ch, i));
+      if (!save.cards[found.key]) {
+        return '<button class="album-card" type="button" disabled aria-label="' + esc(boardLabel(found)) + ' card, not collected yet">' +
+          cardArt(found, true) + '<h3>' + esc(boardLabel(found)) + '</h3></button>';
+      }
+      return '<button class="album-card" type="button" data-card="' + found.key + '">' + cardArt(found) +
+        '<h3>' + esc(b.name) + '</h3></button>';
     }).join('');
   }
 
@@ -829,7 +896,7 @@
   function showPieceIntro(found) {
     var fresh = found.board.newPieces;
     openSheet(
-      '<p class="eyebrow">Board ' + (found.index + 1) + ' · ' + esc(found.board.name) + '</p>' +
+      '<p class="eyebrow">' + esc(boardLabel(found)) + ' · ' + esc(found.board.name) + '</p>' +
       '<h2 id="sheet-title">' + (fresh.length === 1 ? 'Meet the ' + esc(C.FACES[fresh[0]].toLowerCase()) : 'Meet the ' +
         fresh.map(function (p) { return esc(C.FACES[p].toLowerCase()); }).join(' and the ')) + '</h2>' +
       fresh.map(function (p) {
@@ -856,7 +923,7 @@
     var fresh = newFaces(found.chapter, found.index);
     if (save.seenIntro[found.key] || !fresh.length) return;
     openSheet(
-      '<p class="eyebrow">Board ' + (found.index + 1) + ' · ' + esc(found.board.name) + '</p>' +
+      '<p class="eyebrow">' + esc(boardLabel(found)) + ' · ' + esc(found.board.name) + '</p>' +
       '<h2 id="sheet-title">New tiles tonight</h2>' +
       '<div class="new-tiles">' + fresh.map(function (f) {
         return '<figure>' + miniTile(f, 'big') + '<figcaption>' + esc(C.FACES[f]) + '</figcaption></figure>';
@@ -907,7 +974,7 @@
     var found = lookup(key);
     var b = found.board;
     openSheet(
-      '<p class="eyebrow">' + esc(found.chapter.kicker) + ' · Board ' + (found.index + 1) + ' card</p>' +
+      '<p class="eyebrow">' + esc(found.chapter.kicker) + ' · ' + esc(boardLabel(found)) + ' card</p>' +
       '<h2 id="sheet-title">' + esc(b.name) + '</h2>' + cardArt(found) +
       '<p class="question">' + esc(b.trivia.q) + '</p>' +
       '<p class="verdict">' + esc(b.trivia.options[b.trivia.answer]) + '</p>' +
@@ -922,14 +989,14 @@
     trivia = { found: found, result: result };
     var tv = found.board.trivia;
     openSheet(
-      '<p class="eyebrow">Board ' + (found.index + 1) + ' cleared</p>' +
+      '<p class="eyebrow">' + esc(boardLabel(found)) + ' cleared</p>' +
       '<h2 id="sheet-title">' + esc(found.chapter.cardTitle || 'Do you remember?') + '</h2>' + cardArt(found) +
-      '<p class="question">' + esc(tv.q) + '</p>' +
+      '<div id="quiz" class="reveal"><p class="question">' + esc(tv.q) + '</p>' +
       '<div class="answers">' + tv.options.map(function (o, i) {
         return '<button class="answer" type="button" data-answer="' + i + '">' + esc(o) + '</button>';
-      }).join('') + '</div>' +
+      }).join('') + '</div></div>' +
       '<div class="reveal" id="reveal" hidden></div>',
-      { celebrate: true, locked: true, onClose: function () { showScreen('hub'); } }
+      { celebrate: true, locked: true, onClose: function () { showView('home'); } }
     );
   }
 
@@ -952,8 +1019,8 @@
     var nextKey = found.index + 1 < ch.boards.length ? boardKey(ch, found.index + 1) : null;
     var actions;
     if (nextKey) {
-      actions = '<button class="btn btn-primary btn-xl" type="button" data-go="board:' + nextKey + '" data-autofocus>Next: ' +
-        esc(ch.boards[found.index + 1].name) + '</button>';
+      actions = '<button class="btn btn-primary btn-xl" type="button" data-go="board:' + nextKey + '" data-autofocus>Play ' +
+        esc(boardLabel(lookup(nextKey))) + '</button>';
     } else {
       var after = CHAPTERS.filter(function (c) { return c.unlockAfter === ch.id; })[0];
       actions = '<p class="verdict">You finished ' + esc(ch.kicker) + '!</p>' +
@@ -962,20 +1029,24 @@
             '<button class="btn btn-primary btn-xl" type="button" data-go="chapter:' + after.id + '" data-autofocus>Open ' + esc(after.kicker) + '</button>'
           : '<button class="btn btn-primary btn-xl" type="button" data-go="album" data-autofocus>See your album</button>');
     }
-    actions += '<button class="btn btn-ghost" type="button" data-go="hub">Back to the program</button>';
+    actions += '<button class="btn btn-ghost" type="button" data-go="home">Home</button>';
 
     var reveal = $('reveal');
     reveal.innerHTML =
-      '<p class="verdict">' + (right ? 'That’s right!' : 'It was ' + esc(tv.options[tv.answer]) + '.') + '</p>' +
+      '<p class="verdict">' + (right ? 'That’s right! ' : 'It was ') + esc(tv.options[tv.answer]) + (right ? '' : '.') + '</p>' +
       '<p>' + esc(tv.fact) + '</p>' +
       '<p class="collected">' + (firstCard ? 'Card added to your Movie Night album.' : 'This card is already in your album.') + '</p>' +
       '<div class="sheet-actions">' + actions + '</div>' +
       shareBox(trivia.result, 'Send this board to a friend');
-    reveal.hidden = false;
     sheetLocked = false;
-    var focus = reveal.querySelector('[data-autofocus]');
-    if (focus) focus.focus({ preventScroll: true });
-    reveal.scrollIntoView({ block: 'nearest', behavior: reducedMotion() ? 'auto' : 'smooth' });
+    // Let the green and red answers show for a moment, then swap in the result.
+    setTimeout(function () {
+      if (!$('quiz')) return;
+      $('quiz').hidden = true;
+      reveal.hidden = false;
+      var focus = reveal.querySelector('[data-autofocus]');
+      if (focus) focus.focus({ preventScroll: true });
+    }, reducedMotion() ? 0 : 900);
   }
 
   // ---------- The board ----------
@@ -998,7 +1069,7 @@
   // opts.seed and opts.transposed recreate a particular deal.
   function startGame(spec, opts) {
     opts = opts || {};
-    showScreen('game');
+    showView('game');
     var board = resolveBoard(spec);
     var saved = save.games[spec.key];
     if (saved && !opts.fresh) {
@@ -1041,16 +1112,14 @@
     if (game.mode === 'classic') game.bounds = E.bounds(E.layoutPositions(board.blocks, game.transposed));
     save.lastPlayed = spec.kind === 'chapter' ? spec.key : save.lastPlayed;
 
-    var title = gameTitle(game.spec);
-    $('board-label').textContent = title.meta;
-    $('board-name').textContent = title.name;
+    var stats = gameStats(game.spec);
+    $('stat-kind').textContent = stats.kind;
+    $('stat-level').textContent = stats.value;
+    $('stat-left-label').textContent = game.mode === 'chess' ? 'Pieces' : 'Tiles';
+    $('board-name').textContent = stats.name;
     buildBoard();
     layoutBoard();
-    var bar = $('progress-bar');
-    bar.style.transition = 'none';
     render();
-    void bar.offsetWidth;
-    bar.style.transition = '';
     persist();
 
     if (!save.seenHowTo && game.mode === 'classic') showHowTo(true);
@@ -1169,11 +1238,8 @@
     } else {
       renderClassic();
     }
-    var left = E.remaining(tiles);
-    var total = tiles.length;
-    $('tiles-left').textContent = left + (game.mode === 'chess' ? (left === 1 ? ' piece left' : ' pieces left')
-      : (left === 1 ? ' tile left' : ' tiles left'));
-    $('progress-bar').style.width = Math.round((total - left) / total * 100) + '%';
+    $('tiles-left').textContent = String(E.remaining(tiles));
+    $('matches').textContent = String(currentMatches().length);
   }
 
   function renderClassic() {
@@ -1372,23 +1438,23 @@
     else if (result.spec.kind === 'friend') showFriendResult(result);
   }
 
-  function leaveGame() {
+  function leaveGame(to) {
     clearHint();
     if (game) persist();
     game = null;
-    showScreen('hub');
+    showView(to || 'home');
   }
 
   function go(action) {
     if (!action) return;
-    if (action === 'hub') leaveGame();
-    else if (action === 'album') { if (game) persist(); game = null; showScreen('album'); }
+    if (VIEWS.indexOf(action) >= 0 && action !== 'game') leaveGame(action);
+    else if (action === 'daily-play') startGame({ kind: 'daily', key: 'daily-' + today() });
     else if (action === 'friend') playInvite();
     else if (action === 'friend-resume' && save.games.friend) startGame(save.games.friend.spec);
     else if (action.indexOf('chapter:') === 0) {
       save.tab = action.slice(8);
       persist();
-      leaveGame();
+      leaveGame('chapters');
     } else if (action.indexOf('board:') === 0) {
       var key = action.slice(6);
       var found = lookup(key);
@@ -1402,50 +1468,67 @@
 
   function wire() {
     document.querySelectorAll('[data-icon]').forEach(function (s) { s.outerHTML = ART.icon(s.dataset.icon); });
-    document.querySelectorAll('.back-icon').forEach(function (s) { s.innerHTML = ART.icon('back'); });
 
-    $('cta').addEventListener('click', function () { go(this.dataset.action); });
-    $('friend-resume').addEventListener('click', function () { go('friend-resume'); });
-    $('daily').addEventListener('click', function (e) {
-      var btn = e.target.closest('[data-daily]');
-      if (!btn) return;
-      if (btn.dataset.daily === 'play') startGame({ kind: 'daily', key: 'daily-' + today() });
-      else showCalendar();
+    $('play-btn').addEventListener('click', function () { go(this.dataset.action); });
+    $('stars-chip').addEventListener('click', function () { showView('chapters'); });
+    $('open-howto').addEventListener('click', function () { showHowTo(false); });
+    $('open-settings').addEventListener('click', showSettings);
+    $('home').addEventListener('click', function (e) {
+      var w = e.target.closest('.widget[data-go]');
+      if (w) go(w.dataset.go);
     });
+    $('tabbar').addEventListener('click', function (e) {
+      var t = e.target.closest('[data-view]');
+      if (t) showView(t.dataset.view);
+    });
+
+    $('cal-prev').addEventListener('click', function () {
+      calendarMonth = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1, 1);
+      renderDailyView();
+    });
+    $('cal-next').addEventListener('click', function () {
+      calendarMonth = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 1);
+      renderDailyView();
+    });
+    $('daily-action').addEventListener('click', function (e) {
+      if (e.target.closest('#daily-play')) go('daily-play');
+    });
+
+    function pickChapter(id) {
+      save.tab = id;
+      persist();
+      renderChapters();
+      $('tab-' + id).focus();
+    }
     $('chapter-tabs').addEventListener('click', function (e) {
       var tab = e.target.closest('[data-tab]');
-      if (!tab) return;
-      save.tab = tab.dataset.tab;
-      persist();
-      renderTabs();
-      renderProgram();
-      $('tab-' + save.tab).focus();
+      if (tab) pickChapter(tab.dataset.tab);
     });
     $('chapter-tabs').addEventListener('keydown', function (e) {
       if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
       var ids = CHAPTERS.map(function (c) { return c.id; });
       var i = ids.indexOf(save.tab) + (e.key === 'ArrowRight' ? 1 : -1);
-      save.tab = ids[(i + ids.length) % ids.length];
-      renderTabs();
-      renderProgram();
-      $('tab-' + save.tab).focus();
+      pickChapter(ids[(i + ids.length) % ids.length]);
     });
     $('program').addEventListener('click', function (e) {
       var btn = e.target.closest('[data-board]');
       if (btn && !btn.disabled) go('board:' + btn.dataset.board);
     });
-    $('open-album').addEventListener('click', function () { showScreen('album'); });
-    $('open-howto').addEventListener('click', function () {
-      if (chapterById(save.tab).mode === 'chess') showChessHowTo(false);
-      else showHowTo(false);
+    $('chess-howto').addEventListener('click', function () { showChessHowTo(false); });
+
+    $('album-tabs').addEventListener('click', function (e) {
+      var tab = e.target.closest('[data-album-tab]');
+      if (!tab) return;
+      save.albumTab = tab.dataset.albumTab;
+      persist();
+      renderAlbum();
+      $('album-tab-' + save.albumTab).focus();
     });
-    $('open-settings').addEventListener('click', showSettings);
-    $('back').addEventListener('click', leaveGame);
-    $('album-back').addEventListener('click', function () { showScreen('hub'); });
-    $('album-sections').addEventListener('click', function (e) {
+    $('album-grid').addEventListener('click', function (e) {
       var card = e.target.closest('[data-card]');
       if (card) showCard(card.dataset.card);
     });
+    $('back').addEventListener('click', function () { leaveGame('home'); });
 
     $('board').addEventListener('click', function (e) {
       var tile = e.target.closest('.tile');
@@ -1460,10 +1543,6 @@
     sheet.addEventListener('click', function (e) {
       var t = e.target;
       if (t.closest('[data-close]')) { closeSheet(); return; }
-      var cal = t.closest('[data-cal]');
-      if (cal && !cal.disabled) { showCalendar(Number(cal.dataset.cal)); return; }
-      var dailyBtn = t.closest('[data-daily]');
-      if (dailyBtn) { showCalendar(); return; }
       var share = t.closest('[data-share]');
       if (share) { shareFrom(share.closest('.share')); return; }
       var answer = t.closest('[data-answer]');
@@ -1490,7 +1569,7 @@
         persist();
         sheetOnClose = null;
         closeSheet();
-        showScreen('hub');
+        showView('home');
         toast('Everything starts fresh.');
       }
     });
@@ -1519,14 +1598,14 @@
     save = data && data.save ? normalize(data.save) : loadSave();
     if (TEST && params.has('fresh')) save = defaultSave();
     applySettings();
-    showScreen('hub');
+    showView('home');
     var link = readFriendLink();
     if (link) {
       forgetFriendLink();
       track('friend_link_open', { board: link.ref });
       showInvite(link);
-    } else if (data && data.screen === 'game' && data.spec && save.games[data.spec.key]) startGame(data.spec);
-    else if (data && data.screen === 'album') showScreen('album');
+    } else if (data && data.view === 'game' && data.spec && save.games[data.spec.key]) startGame(data.spec);
+    else if (data && data.view && data.view !== 'game' && VIEWS.indexOf(data.view) >= 0) showView(data.view);
   }
 
   wire();
@@ -1547,7 +1626,7 @@
   if (hot && hot.snapshot) {
     hot.snapshot(function () {
       if (game) persist();
-      return { save: save, screen: screen, spec: game ? game.spec : null };
+      return { save: save, view: view, spec: game ? game.spec : null };
     });
   }
   if (hot && hot.ready) hot.ready(boot);

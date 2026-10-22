@@ -1,4 +1,4 @@
-/* Plays all of Chapter 1 in a real browser by tapping tiles, the way a player would.
+/* Plays through the game in a real browser by tapping tiles, the way a player would.
  * Run: npm run e2e   (screenshots go to the folder given as SHOTS, if set)
  */
 'use strict';
@@ -22,6 +22,10 @@ async function tilesLeft(page) {
   return page.evaluate(() => window.__mnm.engine.remaining(window.__mnm.game.tiles));
 }
 
+async function deal(page) {
+  return page.evaluate(() => JSON.stringify(window.__mnm.game.tiles.map((t) => [t.x, t.y, t.z, t.face])));
+}
+
 // Taps one available pair. Returns false when the board is done.
 async function playPair(page) {
   const pair = await page.evaluate(() => {
@@ -41,7 +45,7 @@ async function clearBoard(page) {
   for (let i = 0; i < 200; i++) {
     if (!(await playPair(page))) break;
   }
-  await page.waitForSelector('#overlay:not([hidden]) .celebrate, .sheet.celebrate');
+  await page.waitForSelector('.sheet.celebrate');
 }
 
 async function answerTrivia(page, right) {
@@ -49,13 +53,25 @@ async function answerTrivia(page, right) {
   const choice = right ? correct : (correct + 1) % 4;
   await page.click(`[data-answer="${choice}"]`);
   await page.waitForSelector('#reveal:not([hidden])');
+  assert.ok(await page.isHidden('#quiz'), 'the answers make way for the result');
   const verdict = await page.textContent('#reveal .verdict');
   assert.ok(right ? /right/.test(verdict) : /^It was/.test(verdict), verdict);
 }
 
-async function checkNoSideScroll(page, where) {
-  const over = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
-  assert.ok(over <= 0, `${where}: page scrolls sideways by ${over}px`);
+// Every screen fills the phone exactly: nothing scrolls, sideways or down.
+async function checkNoScroll(page, where) {
+  const over = await page.evaluate(() => [
+    document.documentElement.scrollWidth - window.innerWidth,
+    document.documentElement.scrollHeight - window.innerHeight
+  ]);
+  assert.ok(over[0] <= 0 && over[1] <= 0, `${where}: page scrolls by ${over.join(' x ')}px`);
+}
+
+async function openBoard(page, key) {
+  await page.click('#nav-chapters');
+  await page.click(`#tab-${key.replace(/-\d+$/, '')}`);
+  await page.click(`[data-board="${key}"]`);
+  await page.waitForSelector('#game:not([hidden])');
 }
 
 (async () => {
@@ -78,30 +94,44 @@ async function checkNoSideScroll(page, where) {
     seenIntro: [false, true, false, false, false, false], seenHowTo: true, current: null
   })));
   await page.goto(url('test=1'));
-  assert.match(await page.textContent('#cta'), /Play Board 3: Snack Bar/);
+  assert.strictEqual((await page.textContent('#play-btn')).trim(), 'Level 3');
+  assert.match(await page.textContent('#play-sub'), /Snack Bar/);
   assert.strictEqual(await page.getAttribute('html', 'data-text'), 'large');
-  assert.match(await page.textContent('#album-count'), /^2 of/);
+  await page.click('#nav-album');
+  assert.match(await page.textContent('#album-count'), /^2 of 18/);
   // Chapter 2 stays locked until Chapter 1 is finished.
   await page.goto(url('test=1&locks=1'));
+  await page.click('#nav-chapters');
   assert.match(await page.textContent('#tab-diner'), /Locked/);
   await page.click('#tab-diner');
   assert.ok(await page.isVisible('#chapter-locked'));
   assert.ok(await page.isDisabled('[data-board="diner-1"]'));
   await shot(page, '00-diner-locked');
 
+  // A first visit: one big button, no side badges yet, and each tab fits the screen.
   await page.goto(url('test=1&fresh=1&seed=11'));
-  assert.strictEqual((await page.textContent('#cta')).trim(), 'Start the show');
-  await checkNoSideScroll(page, 'hub');
-  await shot(page, '01-hub-phone');
+  assert.strictEqual((await page.textContent('#play-btn')).trim(), 'Level 1');
+  assert.strictEqual(await page.$$eval('.widget', (els) => els.length), 0);
+  for (const v of ['home', 'daily', 'chapters', 'album']) {
+    await page.click(`#nav-${v}`);
+    await checkNoScroll(page, v);
+    await shot(page, `01-${v}`);
+  }
+  await page.click('#nav-home');
 
-  // Board 1, with the first-time how-to sheet.
-  await page.click('#cta');
+  // Level 1, with the first-time how-to sheet.
+  await page.click('#play-btn');
   await page.waitForSelector('#sheet-title:has-text("How to play")');
   await shot(page, '02-how-to');
   await page.click('[data-close]');
   await page.waitForSelector('#overlay', { state: 'hidden' });
+  assert.ok(await page.isHidden('#tabbar'), 'the board gets the whole screen');
+  assert.strictEqual(await page.textContent('#stat-kind'), 'Level');
+  assert.strictEqual(await page.textContent('#stat-level'), '1');
+  assert.strictEqual(Number(await page.textContent('#matches')), await page.evaluate(() => window.__mnm.matches().length));
+  await checkNoScroll(page, 'board');
   await shot(page, '03-board-1');
-  const firstDeal = await page.evaluate(() => JSON.stringify(window.__mnm.game.tiles.map((t) => [t.x, t.y, t.z, t.face])));
+  const firstDeal = await deal(page);
 
   // A blocked tile shakes and explains itself.
   const blocked = await page.evaluate(() => {
@@ -119,6 +149,7 @@ async function checkNoSideScroll(page, where) {
   const before = await tilesLeft(page);
   await playPair(page);
   assert.strictEqual(await tilesLeft(page), before - 2);
+  assert.strictEqual(await page.textContent('#tiles-left'), String(before - 2));
   await page.click('#undo');
   assert.strictEqual(await tilesLeft(page), before);
 
@@ -143,6 +174,7 @@ async function checkNoSideScroll(page, where) {
   await clearBoard(page);
   await shot(page, '05-trivia');
   await answerTrivia(page, false);
+  await checkNoScroll(page, 'trivia result');
   await shot(page, '06-trivia-answered');
 
   // Send the board to a friend: the link is copied, and opening it deals the very same tiles.
@@ -157,52 +189,57 @@ async function checkNoSideScroll(page, where) {
   friend.on('pageerror', (e) => errors.push(e.message));
   await friend.goto(url('test=1&' + link.searchParams.toString()));
   await friend.waitForSelector('#sheet-title:has-text("Opening Night")');
-  assert.match(await friend.textContent('#sheet'), /cleared it using 2 hints|cleared it using \d+ hints?|no hints/);
+  assert.match(await friend.textContent('#sheet'), /cleared it using (no hints|\d+ hints?)/);
   await shot(friend, '06b-friend-invite');
   await friend.click('[data-go="friend"]');
   await friend.waitForSelector('#game:not([hidden])');
-  const friendDeal = await friend.evaluate(() => JSON.stringify(window.__mnm.game.tiles.map((t) => [t.x, t.y, t.z, t.face])));
-  assert.strictEqual(friendDeal, firstDeal, 'the friend gets the same deal');
+  assert.strictEqual(await friend.textContent('#stat-kind'), 'Friend');
+  assert.strictEqual(await deal(friend), firstDeal, 'the friend gets the same deal');
   assert.ok(!(await friend.evaluate(() => location.search.includes('play='))), 'the link is cleared from the address bar');
   await clearBoard(friend);
   await friend.waitForSelector('#sheet-title:has-text("Board cleared!")');
   assert.match(await friend.textContent('#sheet .question'), /You used|Neither of you|You both used/);
   await shot(friend, '06c-friend-result');
   await friend.close();
-  // The daily board appears once a board is cleared. Clearing it stamps the calendar.
+
+  // After the first board, home shows the Daily badge. Clearing the daily board stamps the calendar.
   await page.goto(url('test=1&today=2026-10-22'));
+  assert.ok(await page.isVisible('.widget[data-go="daily"]'));
+  assert.ok(await page.isVisible('.widget[data-go="chapter:chess"]'), 'Chess Night badge (test mode unlocks it)');
+  await shot(page, '07a-home-badges');
+  await page.click('.widget[data-go="daily"]');
   await page.waitForSelector('#daily:not([hidden])');
   assert.match(await page.textContent('#daily-title'), /Thursday, October 22/);
-  await shot(page, '07a-hub-daily');
-  await page.click('[data-daily="play"]');
+  await checkNoScroll(page, 'daily');
+  await page.click('#daily-play');
   await page.waitForSelector('#game:not([hidden])');
-  assert.strictEqual(await page.textContent('#board-label'), 'Daily board');
-  const dailyDeal = await page.evaluate(() => JSON.stringify(window.__mnm.game.tiles.map((t) => [t.x, t.y, t.z, t.face])));
+  assert.strictEqual(await page.textContent('#stat-kind'), 'Daily');
+  assert.strictEqual(await page.textContent('#stat-level'), 'Oct 22');
+  const dailyDeal = await deal(page);
   await clearBoard(page);
   await page.waitForSelector('#sheet-title:has-text("Stamped!")');
   await shot(page, '07b-daily-stamped');
-  await page.click('#sheet [data-daily]');
-  await page.waitForSelector('#sheet-title:has-text("Your calendar")');
+  await page.click('#sheet [data-go="daily"]');
+  await page.waitForSelector('#daily:not([hidden])');
   assert.strictEqual(await page.$$eval('.cal-day.stamped', (els) => els.length), 1);
+  assert.match(await page.textContent('#daily-action'), /Stamped today/);
   await shot(page, '07c-calendar');
-  await page.click('[data-close]');
-  await page.waitForSelector('#hub:not([hidden])');
-  assert.match(await page.textContent('#daily'), /Stamped today/);
+  await page.click('#nav-home');
+  assert.match(await page.textContent('#clock'), /^\d+:\d\d:\d\d$/, 'the badge counts down to the next board');
   // Everyone gets the same daily board on the same day.
   const otherPlayer = await browser.newContext({ viewport: { width: 390, height: 844 } });
   const again = await otherPlayer.newPage();
   await again.goto(url('test=1&fresh=1&today=2026-10-22'));
-  await again.evaluate(() => localStorage.setItem('movie-night-mahjong.v1', JSON.stringify({ cleared: { 'drive-in-1': true }, seenHowTo: true })));
-  await again.goto(url('test=1&today=2026-10-22'));
-  await again.click('[data-daily="play"]');
+  await again.click('#nav-daily');
+  await again.click('#daily-play');
   await again.waitForSelector('#game:not([hidden])');
-  const dailyAgain = await again.evaluate(() => JSON.stringify(window.__mnm.game.tiles.map((t) => [t.x, t.y, t.z, t.face])));
-  assert.strictEqual(dailyAgain, dailyDeal, 'same daily board for everyone on the same device size');
+  while (await again.isVisible('#overlay:not([hidden]) [data-close]')) await again.click('#overlay [data-close]');
+  assert.strictEqual(await deal(again), dailyDeal, 'same daily board for everyone on the same device size');
   await otherPlayer.close();
-  await page.goto(url('test=1'));
-  await page.click('[data-board="drive-in-2"]');
 
-  // Board 2 opens with its new tiles.
+  // Level 2 opens with its new tiles.
+  await page.goto(url('test=1'));
+  await openBoard(page, 'drive-in-2');
   await page.waitForSelector('#sheet-title:has-text("New tiles tonight")');
   await shot(page, '07-new-tiles');
   await page.click('[data-close]');
@@ -211,9 +248,11 @@ async function checkNoSideScroll(page, where) {
   await playPair(page);
   const leftMid = await tilesLeft(page);
   await page.click('#back');
-  assert.match(await page.textContent('#cta'), /Resume Board 2/);
+  await page.waitForSelector('#home:not([hidden])');
+  assert.strictEqual((await page.textContent('#play-btn')).trim(), 'Level 2');
+  assert.match(await page.textContent('#play-sub'), /^Resume/);
   await page.goto(url('test=1'));
-  await page.click('#cta');
+  await page.click('#play-btn');
   await page.waitForSelector('#game:not([hidden])');
   assert.strictEqual(await tilesLeft(page), leftMid, 'resumed with the same tiles left');
 
@@ -223,73 +262,75 @@ async function checkNoSideScroll(page, where) {
   assert.strictEqual(await page.getAttribute('html', 'data-text'), 'largest');
   await shot(page, '08-settings');
   await page.click('[data-close]');
-  await checkNoSideScroll(page, 'game, largest text');
+  await checkNoScroll(page, 'board, largest text');
   await page.click('#game-settings');
   await page.click('label:has(#text-standard)');
   await page.click('[data-close]');
 
-  // Play out boards 2 to 6, checking the tile size on a phone for each.
+  // Play out levels 2 to 6, checking the tile size on a phone for each.
   const sizes = [];
-  for (let level = 1; level < 6; level++) {
-    if (level > 1) {
-      await page.click(`[data-go="board:drive-in-${level + 1}"]`);
+  for (let level = 2; level <= 6; level++) {
+    if (level > 2) {
+      await page.click(`[data-go="board:drive-in-${level}"]`);
       if (await page.isVisible('#sheet-title:has-text("New tiles tonight")')) await page.click('[data-close]');
     }
     await page.waitForSelector('#overlay', { state: 'hidden' });
-    const tw = await page.evaluate(() => parseFloat(document.getElementById('board').style.getPropertyValue('--tw')));
-    sizes.push(tw);
-    await checkNoSideScroll(page, `board ${level + 1}`);
-    await shot(page, `09-board-${level + 1}`);
+    assert.strictEqual(await page.textContent('#stat-level'), String(level));
+    sizes.push(await page.evaluate(() => parseFloat(document.getElementById('board').style.getPropertyValue('--tw'))));
+    await checkNoScroll(page, `level ${level}`);
+    await shot(page, `09-level-${level}`);
     await clearBoard(page);
     await answerTrivia(page, true);
   }
-  console.log('Tile widths on a 390px phone, boards 2-6:', sizes.join(', '));
+  console.log('Tile widths on a 390px phone, levels 2-6:', sizes.join(', '));
   assert.ok(Math.min(...sizes) >= 44, 'tiles stay at least 44px wide on a phone');
 
   await shot(page, '10-chapter-done');
   assert.match(await page.textContent('#reveal'), /Chapter 2, Rock ’n’ Roll Diner, is now open/);
 
-  // Chapter 2: the program switches to the Diner, every board fits a phone, and board 1 plays through.
+  // Chapter 2: the Chapters tab switches to the Diner, every board fits a phone, and its first board plays through.
   await page.click('[data-go="chapter:diner"]');
-  await page.waitForSelector('#hub:not([hidden])');
+  await page.waitForSelector('#chapters:not([hidden])');
   assert.strictEqual(await page.getAttribute('#tab-diner', 'aria-selected'), 'true');
-  await shot(page, '10b-hub-diner');
+  await shot(page, '10b-chapters-diner');
   const dinerSizes = [];
   for (let i = 6; i >= 1; i--) {
-    await page.click(`[data-board="diner-${i}"]`);
-    await page.waitForSelector('#game:not([hidden])');
+    await openBoard(page, `diner-${i}`);
     if (await page.isVisible('#sheet-title:has-text("New tiles tonight")')) {
       if (i === 1) await shot(page, '10c-diner-new-tiles');
       await page.click('[data-close]');
     }
+    assert.strictEqual(await page.textContent('#stat-level'), String(6 + i));
     dinerSizes.unshift(await page.evaluate(() => parseFloat(document.getElementById('board').style.getPropertyValue('--tw'))));
-    await checkNoSideScroll(page, `diner board ${i}`);
+    await checkNoScroll(page, `diner board ${i}`);
     await shot(page, `10d-diner-${i}`);
     if (i > 1) await page.click('#back');
   }
-  console.log('Tile widths on a 390px phone, Diner boards 1-6:', dinerSizes.join(', '));
+  console.log('Tile widths on a 390px phone, levels 7-12:', dinerSizes.join(', '));
   assert.ok(Math.min(...dinerSizes) >= 44, 'Diner tiles stay at least 44px wide on a phone');
   await clearBoard(page);
   await answerTrivia(page, true);
   assert.ok(await page.isVisible('[data-go="board:diner-2"]'));
-  await page.click('[data-go="hub"]');
-  await page.click('#open-album');
-  await page.waitForSelector('#album:not([hidden])');
-  assert.strictEqual(await page.$$eval('[data-card]', (els) => els.length), 7);
-  assert.strictEqual(await page.$$eval('.album-section', (els) => els.length), 3);
+  await page.click('[data-go="home"]');
+  await page.click('#nav-album');
+  assert.match(await page.textContent('#album-count'), /^7 of 18/);
+  assert.strictEqual(await page.$$eval('#album-grid [data-card]', (els) => els.length), 6);
+  await page.click('#album-tab-diner');
+  assert.strictEqual(await page.$$eval('#album-grid [data-card]', (els) => els.length), 1);
+  await checkNoScroll(page, 'album');
   await shot(page, '11-album');
+  await page.click('#album-grid [data-card]');
+  await page.waitForSelector('#sheet-title:has-text("Booth for Two")');
+  await page.click('[data-close]');
 
-  await page.goto(url('test=1'));
+  await page.click('#nav-chapters');
   await page.click('#tab-drive-in');
   assert.ok(await page.isVisible('#chapter-done'));
-  assert.match(await page.textContent('#album-count'), /7 of 18/);
-  await shot(page, '12-hub-done');
+  await shot(page, '12-chapters-done');
 
   // Chess Night: the how-to and piece intro, move dots, an out-of-reach twin, and a full board.
   await page.goto(url('test=1&seed=21'));
-  await page.click('#tab-chess');
-  await shot(page, '12b-hub-chess');
-  await page.click('[data-board="chess-3"]');
+  await openBoard(page, 'chess-3');
   await page.waitForSelector('#sheet-title:has-text("How Chess Night works")');
   await shot(page, '12c-chess-howto');
   await page.click('[data-close]');
@@ -297,6 +338,8 @@ async function checkNoSideScroll(page, where) {
   await shot(page, '12d-meet-knight');
   await page.click('[data-close]');
   await page.waitForSelector('#overlay', { state: 'hidden' });
+  assert.strictEqual(await page.textContent('#stat-kind'), 'Chess');
+  assert.strictEqual(await page.textContent('#stat-left-label'), 'Pieces');
   const chessCheck = await page.evaluate(() => {
     const g = window.__mnm.game;
     const CH = window.__mnm.chess;
@@ -323,15 +366,14 @@ async function checkNoSideScroll(page, where) {
   await page.click(`#board .tile[data-id="${chessCheck.near}"]`);
   await waitIdle(page);
   assert.strictEqual(await tilesLeft(page), piecesBefore - 2);
-  await checkNoSideScroll(page, 'chess board');
+  await checkNoScroll(page, 'chess board');
   await clearBoard(page);
   assert.match(await page.textContent('#sheet-title'), /Did you know\?/);
   await answerTrivia(page, true);
   await shot(page, '12f-chess-card');
-  await page.click('[data-go="hub"]');
+  await page.click('[data-go="home"]');
   for (let i = 1; i <= 6; i++) {
-    await page.click(`[data-board="chess-${i}"]`);
-    await page.waitForSelector('#game:not([hidden])');
+    await openBoard(page, `chess-${i}`);
     while (await page.isVisible('#overlay:not([hidden]) [data-close]')) await page.click('#overlay [data-close]');
     const sq = await page.evaluate(() => parseFloat(document.getElementById('board').style.getPropertyValue('--sq')));
     assert.ok(sq >= 50, `chess board ${i} squares are ${sq}px on a phone`);
@@ -339,17 +381,25 @@ async function checkNoSideScroll(page, where) {
     await page.click('#back');
   }
 
-  // Desktop and tablet layouts.
-  for (const [w, h, name] of [[1280, 800, 'desktop'], [1024, 768, 'tablet'], [844, 390, 'phone-landscape']]) {
+  // A small phone, a tablet, a desktop and a phone held sideways.
+  for (const [w, h, name] of [[375, 667, 'small-phone'], [1280, 800, 'desktop'], [1024, 768, 'tablet'], [844, 390, 'phone-landscape']]) {
     await page.setViewportSize({ width: w, height: h });
+    // Each size starts afresh, so its board is dealt for that screen's shape.
+    await page.goto(url('test=1&fresh=1&seed=5'));
+    await page.evaluate(() => localStorage.setItem('movie-night-mahjong.v1', JSON.stringify({ seenHowTo: true, seenIntro: { 'drive-in-6': true } })));
     await page.goto(url('test=1&seed=5'));
-    await page.click('#tab-drive-in');
-    await page.click('[data-board="drive-in-6"]');
-    await page.waitForSelector('#game:not([hidden])');
+    for (const v of ['home', 'daily', 'chapters', 'album']) {
+      await page.click(`#nav-${v}`);
+      await checkNoScroll(page, `${name} ${v}`);
+    }
+    await shot(page, `13-${name}-album`);
+    await page.click('#nav-home');
+    await shot(page, `13-${name}-home`);
+    await openBoard(page, 'drive-in-6');
     const tw = await page.evaluate(() => parseFloat(document.getElementById('board').style.getPropertyValue('--tw')));
     console.log(`Grand Finale tile width on ${name} (${w}x${h}): ${tw}px`);
-    await checkNoSideScroll(page, name);
-    await shot(page, `13-${name}`);
+    await checkNoScroll(page, `${name} board`);
+    await shot(page, `13-${name}-board`);
     await page.click('#back');
   }
 

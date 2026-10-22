@@ -50,6 +50,7 @@
 
   var DRIVE_IN = {
     id: 'drive-in',
+    emblem: 'car',
     kicker: 'Chapter 1',
     short: 'Drive-In',
     title: 'Saturday at the Drive-In',
@@ -139,6 +140,7 @@
 
   var DINER = {
     id: 'diner',
+    emblem: 'jukebox',
     kicker: 'Chapter 2',
     short: 'Diner',
     title: 'Rock ’n’ Roll Diner',
@@ -234,6 +236,7 @@
   // Bonus chapter. Grids: '#' is a square with a piece on it, '.' an empty square.
   var CHESS = {
     id: 'chess',
+    emblem: 'knight',
     kicker: 'Bonus',
     short: 'Chess Night',
     title: 'Chess Night',

@@ -8,6 +8,16 @@ A relaxing mahjong solitaire for players who want big, clear tiles and no time p
 
 You can also open `index.html` straight from a download. There's no build step and no server.
 
+## How it's laid out
+
+The structure follows Vita Mahjong, and no screen scrolls:
+
+- **Home:** the marquee, a round drive-in sign, and one big **Level N** button that plays the next level or resumes one in progress. Help and settings are round buttons in the top corner, and a star counter of cleared boards is on the left. Side badges work like Vita's event icons: **Daily** (with a red dot until today's board is done, then a countdown to the next one), **Chess** and, when one is waiting, **Friend**. They appear after the first cleared board.
+- **Tabs:** Home · Daily (this month's calendar and today's board) · Chapters (pick a chapter, then one of its six boards) · Album (six cards per chapter).
+- **The board:** a round back button, **Level / Tiles / Matches** counters (Matches is how many pairs you can take right now), the board's name, and round **Shuffle / Hint / Undo** buttons. Each has an ∞ badge, because all three are unlimited.
+
+The movie chapters are numbered as one run of levels: Chapter 1 is Levels 1–6 and Chapter 2 is Levels 7–12.
+
 ## What's in it
 
 | Chapter | Boards | Tiles | Opens |

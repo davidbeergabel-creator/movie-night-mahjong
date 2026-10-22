@@ -266,14 +266,55 @@
     settings: '<path d="M4 7 H20 M4 17 H20"/><circle cx="9" cy="7" r="2.6" class="knob"/><circle cx="15" cy="17" r="2.6" class="knob"/>',
     back: '<path d="M15 5 L8 12 L15 19"/>',
     lock: '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11 V8 A4 4 0 0 1 16 8 V11"/>',
-    star: '<polygon points="12,2.8 14.6,8.9 21.2,9.4 16.2,13.7 17.7,20.2 12,16.8 6.3,20.2 7.8,13.7 2.8,9.4 9.4,8.9" class="fill"/>'
+    star: '<polygon points="12,2.8 14.6,8.9 21.2,9.4 16.2,13.7 17.7,20.2 12,16.8 6.3,20.2 7.8,13.7 2.8,9.4 9.4,8.9" class="fill"/>',
+    home: '<path d="M3.5 11 L12 3.5 L20.5 11"/><path d="M5.5 9.5 V20.5 H18.5 V9.5"/><path d="M10 20.5 V14.5 H14 V20.5"/>',
+    calendar: '<rect x="3" y="5" width="18" height="16" rx="2.5"/><path d="M3 10 H21 M8 3 V7 M16 3 V7"/>',
+    chapters: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7.5 4 V20 M16.5 4 V20 M3 9.3 H7.5 M3 14.7 H7.5 M16.5 9.3 H21 M16.5 14.7 H21"/>',
+    album: '<rect x="3.5" y="3" width="13" height="17" rx="2"/><path d="M8 21 H18 A2.5 2.5 0 0 0 20.5 18.5 V7"/>',
+    help: '<circle cx="12" cy="12" r="9"/><path d="M9.4 9.4 A2.7 2.7 0 1 1 12.9 12 C12.3 12.3 12 12.9 12 13.6 V14"/><circle cx="12" cy="17.3" r="1.1" class="fill"/>'
   };
+
+  // The big round sign on the home screen: a lit marquee ring around a drive-in at night,
+  // with the current chapter's tile up on the screen.
+  function emblem(faceId) {
+    var bulbs = '';
+    for (var i = 0; i < 28; i++) {
+      var a = (i / 28) * Math.PI * 2;
+      bulbs += '<circle class="bulb b' + (i % 2) + '" cx="' + (150 + 133 * Math.cos(a)).toFixed(1) + '" cy="' +
+        (150 + 133 * Math.sin(a)).toFixed(1) + '" r="5.5"/>';
+    }
+    var tile = face(faceId).replace('<svg ', '<svg x="127" y="80" width="46" height="46" ');
+    return '<svg class="emblem-svg" viewBox="0 0 300 300" aria-hidden="true" focusable="false">' +
+      '<defs><linearGradient id="emblem-sky" x1="0" y1="0" x2="0" y2="1">' +
+      '<stop offset="0" stop-color="#0c1330"/><stop offset="1" stop-color="#2e3b7a"/></linearGradient>' +
+      '<clipPath id="emblem-clip"><circle cx="150" cy="150" r="108"/></clipPath></defs>' +
+      '<circle cx="150" cy="150" r="146" fill="#7a1d33" stroke="' + INK + '" stroke-width="4"/>' +
+      '<g fill="#ffc94a">' + bulbs + '</g>' +
+      '<circle cx="150" cy="150" r="117" fill="#fff6e2" stroke="' + INK + '" stroke-width="4"/>' +
+      '<g clip-path="url(#emblem-clip)">' +
+      '<rect x="40" y="40" width="220" height="220" fill="url(#emblem-sky)"/>' +
+      '<g fill="#fff6e2"><circle cx="78" cy="88" r="1.6"/><circle cx="222" cy="78" r="1.8"/><circle cx="96" cy="58" r="1.2"/>' +
+      '<circle cx="206" cy="118" r="1.3"/><circle cx="64" cy="128" r="1.2"/><circle cx="240" cy="140" r="1.4"/></g>' +
+      '<path d="M205 66 A16 16 0 1 0 223 88 A12 12 0 1 1 205 66 Z" fill="#fff0b3"/>' +
+      '<polygon points="150,236 104,146 196,146" fill="#fff6e2" opacity="0.13"/>' +
+      '<path d="M108 146 V178 M192 146 V178" stroke="' + INK + '" stroke-width="5"/>' +
+      '<path d="M96 66 H204 L198 148 H102 Z" fill="#fff6e2" stroke="' + INK + '" stroke-width="4" stroke-linejoin="round"/>' +
+      '<rect x="125" y="78" width="50" height="58" rx="7" fill="#fffdf7" stroke="#d4bb86" stroke-width="3"/>' + tile +
+      '<path d="M30 196 Q150 172 270 196 V270 H30 Z" fill="#141a35"/>' +
+      '<g fill="' + INK + '" stroke="#2e3b7a" stroke-width="2">' +
+      '<path d="M62 214 Q64 202 78 201 L84 194 H102 L110 201 Q122 202 122 214 Z"/>' +
+      '<path d="M178 214 Q180 202 194 201 L200 194 H218 L226 201 Q238 202 238 214 Z"/>' +
+      '<path d="M118 232 Q120 220 134 219 L140 212 H160 L166 219 Q180 220 182 232 Z"/></g>' +
+      '<rect x="138" y="232" width="24" height="18" rx="3" fill="#2e3b7a" stroke="' + INK + '" stroke-width="3"/>' +
+      '<circle cx="150" cy="236" r="4" fill="#ffc94a"/>' +
+      '</g></svg>';
+  }
 
   function icon(name) {
     return '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">' + ICONS[name] + '</svg>';
   }
 
-  var api = { face: face, icon: icon, FACE_IDS: Object.keys(FACES) };
+  var api = { face: face, icon: icon, emblem: emblem, FACE_IDS: Object.keys(FACES) };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.MNMArt = api;
 })(typeof window !== 'undefined' ? window : this);

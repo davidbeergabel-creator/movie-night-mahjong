@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Movie Night Mahjong</title>
-<meta name="description" content="A relaxing mahjong solitaire with big, clear tiles and a movie night theme. No timers. Chapter 1: Saturday at the Drive-In.">
+<meta name="description" content="A relaxing mahjong solitaire with big, clear tiles and a movie night theme. No timers. Two chapters, a daily board and a bonus chess chapter.">
 <meta name="theme-color" content="#121a3a">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -13,77 +13,103 @@
 </head>
 <body>
 <div id="app">
+  <main class="views">
 
-  <section id="hub" class="screen hub" aria-labelledby="hub-title">
-    <div class="hub-inner">
-      <header class="marquee">
-        <div class="marquee-frame">
-          <h1 id="hub-title" class="marquee-board">
-            <span class="marquee-small">Movie Night</span>
-            <span class="marquee-big">Mahjong</span>
-          </h1>
+    <section id="home" class="view home" aria-labelledby="home-title">
+      <div class="home-top">
+        <button id="stars-chip" class="chip" type="button"><span data-icon="star"></span><span id="stars-count">0</span></button>
+        <div class="top-icons">
+          <button id="open-howto" class="round-btn" type="button" aria-label="How to play"><span data-icon="help"></span></button>
+          <button id="open-settings" class="round-btn" type="button" aria-label="Settings"><span data-icon="settings"></span></button>
         </div>
-        <p class="chapter-line">Big tiles · No timer · A movie night every night</p>
+      </div>
+      <div class="marquee-frame">
+        <h1 id="home-title" class="marquee-board">
+          <span class="marquee-small">Movie Night</span>
+          <span class="marquee-big">Mahjong</span>
+        </h1>
+      </div>
+      <div class="stage">
+        <div id="emblem" class="emblem"></div>
+        <div id="widgets-left" class="widgets left"></div>
+        <div id="widgets-right" class="widgets right"></div>
+      </div>
+      <p id="play-sub" class="play-sub"></p>
+      <button id="play-btn" class="play-btn" type="button">Level 1</button>
+    </section>
+
+    <section id="daily" class="view tab-view" aria-labelledby="daily-title" hidden>
+      <header class="view-head">
+        <p class="eyebrow">Daily board</p>
+        <h1 id="daily-title">Today</h1>
       </header>
-
-      <section id="daily" class="daily" aria-labelledby="daily-title" hidden></section>
-
-      <button id="cta" class="btn btn-primary btn-xl" type="button">Start the show</button>
-      <button id="friend-resume" class="btn btn-ghost" type="button" hidden></button>
-
-      <section class="program-section" aria-labelledby="program-title">
-        <div id="chapter-tabs" class="chapter-tabs" role="tablist" aria-label="Chapters" hidden></div>
-        <div class="chapter-head">
-          <h2 id="program-title" class="section-label">Tonight’s program</h2>
-          <p id="chapter-sub" class="chapter-sub"></p>
+      <div class="cal-card">
+        <div class="cal-nav">
+          <button id="cal-prev" class="round-btn small" type="button" aria-label="Previous month"><span data-icon="back"></span></button>
+          <strong id="cal-month">October</strong>
+          <button id="cal-next" class="round-btn small flip" type="button" aria-label="Next month"><span data-icon="back"></span></button>
         </div>
-        <div id="chapter-done" class="banner" hidden></div>
-        <ol id="program" class="program"></ol>
-        <p id="chapter-locked" class="locked-note" hidden></p>
-      </section>
+        <div id="calendar" class="calendar"></div>
+      </div>
+      <p id="daily-note" class="view-note"></p>
+      <div id="daily-action" class="view-action"></div>
+    </section>
 
-      <nav class="hub-actions" aria-label="More">
-        <button id="open-album" class="btn btn-ghost" type="button">Movie Night album <span id="album-count" class="count"></span></button>
-        <button id="open-howto" class="btn btn-ghost" type="button">How to play</button>
-        <button id="open-settings" class="btn btn-ghost" type="button">Settings</button>
+    <section id="chapters" class="view tab-view" aria-labelledby="chapters-title" hidden>
+      <header class="view-head">
+        <h1 id="chapters-title">Chapters</h1>
+      </header>
+      <div id="chapter-tabs" class="seg-tabs" role="tablist" aria-label="Chapters"></div>
+      <div class="chapter-head">
+        <h2 id="program-title"></h2>
+        <p id="chapter-sub"></p>
+      </div>
+      <p id="chapter-locked" class="locked-note" hidden></p>
+      <ol id="program" class="board-grid"></ol>
+      <div class="view-foot">
+        <p id="chapter-done" class="done-note" hidden></p>
+        <button id="chess-howto" class="btn btn-ghost" type="button" hidden>How Chess Night works</button>
+      </div>
+    </section>
+
+    <section id="album" class="view tab-view" aria-labelledby="album-title" hidden>
+      <header class="view-head">
+        <h1 id="album-title">Album</h1>
+        <p id="album-count" class="view-note"></p>
+      </header>
+      <div id="album-tabs" class="seg-tabs" role="tablist" aria-label="Album chapters"></div>
+      <div id="album-grid" class="card-grid"></div>
+    </section>
+
+    <section id="game" class="view game" aria-labelledby="board-name" hidden>
+      <header class="game-bar">
+        <button id="back" class="round-btn" type="button" aria-label="Back to home"><span data-icon="back"></span></button>
+        <div class="stats">
+          <div class="stat"><span id="stat-kind">Level</span><strong id="stat-level">1</strong></div>
+          <div class="stat"><span id="stat-left-label">Tiles</span><strong id="tiles-left">0</strong></div>
+          <div class="stat"><span>Matches</span><strong id="matches">0</strong></div>
+        </div>
+        <button id="game-settings" class="round-btn" type="button" aria-label="Settings"><span data-icon="settings"></span></button>
+      </header>
+      <p id="board-name" class="board-name">Opening Night</p>
+      <div id="board-wrap" class="board-wrap">
+        <div id="board" class="board" role="group" aria-label="Tiles"></div>
+      </div>
+      <nav class="toolbar" aria-label="Game tools">
+        <button id="shuffle" class="tool" type="button"><span class="tool-disc"><span data-icon="shuffle"></span><b class="badge" aria-hidden="true">∞</b></span>Shuffle</button>
+        <button id="hint" class="tool tool-hint" type="button"><span class="tool-disc"><span data-icon="hint"></span><b class="badge" aria-hidden="true">∞</b></span>Hint</button>
+        <button id="undo" class="tool" type="button"><span class="tool-disc"><span data-icon="undo"></span><b class="badge" aria-hidden="true">∞</b></span>Undo</button>
       </nav>
+    </section>
 
-      <p class="promise">No timers. Play at your own pace.</p>
-    </div>
-  </section>
+  </main>
 
-  <section id="game" class="screen game" aria-labelledby="board-name" hidden>
-    <header class="game-bar">
-      <button id="back" class="btn btn-small" type="button" aria-label="Back to the program"><span class="back-icon"></span>Program</button>
-      <div class="game-title">
-        <span class="game-meta"><span id="board-label">Board 1 of 6</span> · <span id="tiles-left" aria-live="polite">16 tiles left</span></span>
-        <strong id="board-name">Opening Night</strong>
-      </div>
-    </header>
-    <div class="progress" aria-hidden="true"><i id="progress-bar"></i></div>
-    <div id="board-wrap" class="board-wrap">
-      <div id="board" class="board" role="group" aria-label="Tiles"></div>
-    </div>
-    <nav class="toolbar" aria-label="Game tools">
-      <button id="undo" class="tool" type="button"><span data-icon="undo"></span>Undo</button>
-      <button id="hint" class="tool tool-hint" type="button"><span data-icon="hint"></span>Hint</button>
-      <button id="shuffle" class="tool" type="button"><span data-icon="shuffle"></span>Shuffle</button>
-      <button id="game-settings" class="tool" type="button"><span data-icon="settings"></span>Settings</button>
-    </nav>
-  </section>
-
-  <section id="album" class="screen album-screen" aria-labelledby="album-title" hidden>
-    <header class="page-bar">
-      <button id="album-back" class="btn btn-small" type="button" aria-label="Back to the program"><span class="back-icon"></span>Program</button>
-      <h1 id="album-title">Movie Night album</h1>
-    </header>
-    <div class="album-scroll">
-      <div class="album-inner">
-        <p class="album-intro">Clear a board to collect its card. Every card asks you something from the movies.</p>
-        <div id="album-sections" class="album-sections"></div>
-      </div>
-    </div>
-  </section>
+  <nav id="tabbar" class="tabbar" aria-label="Main">
+    <button id="nav-home" class="tab" type="button" data-view="home"><span data-icon="home"></span>Home</button>
+    <button id="nav-daily" class="tab" type="button" data-view="daily"><span data-icon="calendar"></span>Daily</button>
+    <button id="nav-chapters" class="tab" type="button" data-view="chapters"><span data-icon="chapters"></span>Chapters</button>
+    <button id="nav-album" class="tab" type="button" data-view="album"><span data-icon="album"></span>Album</button>
+  </nav>
 
   <div id="overlay" class="overlay" hidden>
     <div id="sheet" class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title"></div>
