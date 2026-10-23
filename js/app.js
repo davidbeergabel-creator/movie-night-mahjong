@@ -554,6 +554,49 @@
     return window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   }
 
+  // ---------- Portrait, always ----------
+
+  // Like an app locked to portrait: when a phone is held sideways, the game turns with the phone
+  // and stays upright for it. Tablets and computers keep their normal layout.
+  var sidewaysPhone = window.matchMedia('(orientation: landscape) and (max-height: 540px) and (pointer: coarse)');
+
+  function turnAngle() {
+    var a = screen.orientation && typeof screen.orientation.angle === 'number' ? screen.orientation.angle
+      : typeof window.orientation === 'number' ? window.orientation : 90;
+    a = ((a % 360) + 360) % 360;
+    return a === 270 ? 270 : 90;
+  }
+
+  function keepPortrait() {
+    var root = document.documentElement;
+    var w = window.innerWidth;
+    var h = window.innerHeight;
+    var turned = sidewaysPhone.matches;
+    if (turned) {
+      root.setAttribute('data-turned', turnAngle() === 270 ? 'right' : 'left');
+      var t = w;
+      w = h;
+      h = t;
+    } else {
+      root.removeAttribute('data-turned');
+    }
+    root.style.setProperty('--app-w', w + 'px');
+    root.style.setProperty('--app-h', h + 'px');
+    root.style.setProperty('--gw', (w / 100) + 'px');
+    root.style.setProperty('--gh', (h / 100) + 'px');
+    root.toggleAttribute('data-short', h < 700);
+    root.toggleAttribute('data-narrow', w <= 380);
+    root.toggleAttribute('data-wide', w >= 640);
+    layoutBoard();
+  }
+
+  function lockPortrait() {
+    // Works in an installed app on Android; elsewhere the browser says no and keepPortrait() covers it.
+    try {
+      if (screen.orientation && screen.orientation.lock) screen.orientation.lock('portrait').catch(function () {});
+    } catch (e) { /* not supported */ }
+  }
+
   // ---------- Toast ----------
 
   var toastTimer = null;
@@ -1592,9 +1635,15 @@
     if (window.ResizeObserver) new ResizeObserver(function () { layoutBoard(); }).observe($('board-wrap'));
     else window.addEventListener('resize', layoutBoard);
     window.addEventListener('pagehide', function () { if (game) persist(); });
+    window.addEventListener('resize', keepPortrait);
+    window.addEventListener('orientationchange', keepPortrait);
+    if (sidewaysPhone.addEventListener) sidewaysPhone.addEventListener('change', keepPortrait);
+    if (screen.orientation && screen.orientation.addEventListener) screen.orientation.addEventListener('change', keepPortrait);
   }
 
   function boot(data) {
+    keepPortrait();
+    lockPortrait();
     save = data && data.save ? normalize(data.save) : loadSave();
     if (TEST && params.has('fresh')) save = defaultSave();
     applySettings();

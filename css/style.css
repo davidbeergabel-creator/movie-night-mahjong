@@ -31,6 +31,10 @@
   --font-body: "Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --gutter-l: max(16px, env(safe-area-inset-left, 0px));
   --gutter-r: max(16px, env(safe-area-inset-right, 0px));
+  /* 1% of the game's own width and height. app.js measures them, because a phone held sideways
+     shows the game turned upright and the screen's vw and vh no longer match it. */
+  --gw: 1vw;
+  --gh: 1vh;
   padding-top: env(safe-area-inset-top, 0px);
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
@@ -146,7 +150,7 @@ button { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent
 /* Home */
 .home {
   align-items: center;
-  gap: clamp(6px, 1.5vh, 14px);
+  gap: clamp(6px, calc(var(--gh) * 1.5), 14px);
   padding-block: 10px 14px;
   padding-left: var(--gutter-l);
   padding-right: var(--gutter-r);
@@ -168,7 +172,7 @@ button { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent
   margin: 0;
   display: grid;
   justify-items: center;
-  padding: clamp(6px, 1.2vh, 12px) 10px;
+  padding: clamp(6px, calc(var(--gh) * 1.2), 12px) 10px;
   border-radius: 8px;
   background-color: var(--ivory);
   background-image: repeating-linear-gradient(180deg, transparent 0 21px, rgba(34, 26, 51, 0.07) 21px 23px);
@@ -180,12 +184,12 @@ button { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent
 .marquee-small {
   font-family: var(--font-display);
   color: var(--cherry);
-  font-size: clamp(1rem, min(4.6vw, 2.8vh), 1.5rem);
+  font-size: clamp(1rem, min(calc(var(--gw) * 4.6), calc(var(--gh) * 2.8)), 1.5rem);
   letter-spacing: 0.08em;
 }
 .marquee-big {
   font-family: var(--font-display);
-  font-size: clamp(2rem, min(11.5vw, 6.5vh), 3.6rem);
+  font-size: clamp(2rem, min(calc(var(--gw) * 11.5), calc(var(--gh) * 6.5)), 3.6rem);
   letter-spacing: 0.02em;
 }
 .stage { position: relative; flex: 1; min-height: 0; }
@@ -253,7 +257,7 @@ button { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent
   background: linear-gradient(180deg, var(--bulb-light), var(--bulb));
   color: var(--ink);
   font-family: var(--font-display);
-  font-size: clamp(1.5rem, 7vw, 2rem);
+  font-size: clamp(1.5rem, calc(var(--gw) * 7), 2rem);
   letter-spacing: 0.02em;
   box-shadow: 0 6px 0 var(--bulb-shadow), 0 12px 28px rgba(0, 0, 0, 0.4);
   cursor: pointer;
@@ -628,7 +632,7 @@ button { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent
   flex: none;
   display: flex;
   justify-content: center;
-  gap: clamp(20px, 8vw, 48px);
+  gap: clamp(20px, calc(var(--gw) * 8), 48px);
   padding-block: 6px 12px;
   padding-left: var(--gutter-l);
   padding-right: var(--gutter-r);
@@ -781,7 +785,7 @@ button { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent
   padding-left: var(--gutter-l);
   padding-right: var(--gutter-r);
 }
-@media (min-width: 640px) { .overlay { align-items: center; } }
+:root[data-wide] .overlay { align-items: center; }
 .sheet {
   width: 100%;
   max-width: 34rem;
@@ -793,7 +797,7 @@ button { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent
   background: var(--sky-2);
   box-shadow: inset 0 0 0 2px var(--sky-3), 0 20px 60px rgba(0, 0, 0, 0.5);
 }
-@media (min-width: 640px) { .sheet { margin: auto; } }
+:root[data-wide] .sheet { margin: auto; }
 .sheet.celebrate { box-shadow: inset 0 0 0 3px var(--bulb), 0 0 60px rgba(255, 201, 74, 0.3); }
 .sheet h2 {
   margin: 0;
@@ -965,58 +969,46 @@ button { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent
 }
 .toast.show { opacity: 1; transform: translate(-50%, 0); }
 
-/* Short screens: tighten the home sign and the tab screens. */
-@media (max-height: 700px) {
-  .marquee-frame { padding: 10px; background-size: 10px 10px; }
-  .seg-tab { min-height: 3.2rem; padding-block: 0.4rem; }
-  .tab-kicker { display: none; }
-  .chapter-head p { display: none; }
-  .view-head h1 { font-size: 1.3rem; }
-  .board-art { display: none; }
-  .game-bar { padding-block: 4px 0; }
-  .round-btn { width: 2.8rem; height: 2.8rem; }
-  .stat strong { font-size: 1.1rem; }
-  .board-name { font-size: 0.85rem; }
-  .board-wrap { padding-block: 6px; }
-  .toolbar { padding-block: 2px 6px; }
-  .tool { font-size: 0.85rem; gap: 2px; }
-  .tool-disc { width: 3.2rem; height: 3.2rem; }
-  .tool-disc .icon { width: 1.6rem; height: 1.6rem; }
-}
+/* Short screens: tighten the home sign, the tab screens and the board screen. */
+:root[data-short] .marquee-frame { padding: 10px; background-size: 10px 10px; }
+:root[data-short] .seg-tab { min-height: 3.2rem; padding-block: 0.4rem; }
+:root[data-short] .tab-kicker { display: none; }
+:root[data-short] .chapter-head p { display: none; }
+:root[data-short] .view-head h1 { font-size: 1.3rem; }
+:root[data-short] .board-art { display: none; }
+:root[data-short] .game-bar { padding-block: 4px 0; }
+:root[data-short] .round-btn { width: 2.8rem; height: 2.8rem; }
+:root[data-short] .stat strong { font-size: 1.1rem; }
+:root[data-short] .board-name { font-size: 0.85rem; }
+:root[data-short] .board-wrap { padding-block: 6px; }
+:root[data-short] .toolbar { padding-block: 2px 6px; }
+:root[data-short] .tool { font-size: 0.85rem; gap: 2px; }
+:root[data-short] .tool-disc { width: 3.2rem; height: 3.2rem; }
+:root[data-short] .tool-disc .icon { width: 1.6rem; height: 1.6rem; }
 
-/* A phone held sideways: the home sign and button sit beside the emblem; tools move to the right. */
-@media (orientation: landscape) and (max-height: 540px) {
-  .home {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    grid-template-rows: auto auto 1fr auto auto;
-    align-items: stretch;
-    column-gap: 20px;
-  }
-  .home > * { max-width: none; }
-  .home-top { grid-column: 1 / 3; }
-  .marquee-frame { grid-column: 1; grid-row: 2 / 4; align-self: center; }
-  .stage { grid-column: 2; grid-row: 2 / 6; }
-  .play-sub { grid-column: 1; grid-row: 4; }
-  .play-btn { grid-column: 1; grid-row: 5; }
-  .game {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    grid-template-rows: auto auto minmax(0, 1fr);
-  }
-  .game-bar { grid-column: 1; grid-row: 1; padding-block: 4px 0; }
-  .board-name { grid-column: 1; grid-row: 2; }
-  .board-wrap { grid-column: 1; grid-row: 3; padding-block: 6px; }
-  .toolbar { grid-column: 2; grid-row: 1 / 4; flex-direction: column; justify-content: center; gap: 12px; padding-left: 4px; }
-  .tool-disc { width: 3.2rem; height: 3.2rem; }
-  .tab { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 3.2rem; padding-block: 4px; }
-  .toast { bottom: calc(env(safe-area-inset-bottom, 0px) + 1rem); }
+/* A phone held sideways: the game stays upright for the phone, like an app locked to portrait.
+   app.js sets data-turned and the game's size (--app-w, --app-h) when this happens. */
+:root[data-turned] #app {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  width: var(--app-w);
+  height: var(--app-h);
+  transform: translate(-50%, -50%) rotate(-90deg);
+  padding-top: env(safe-area-inset-left, 0px);
+  padding-bottom: env(safe-area-inset-right, 0px);
 }
+:root[data-turned="right"] #app {
+  transform: translate(-50%, -50%) rotate(90deg);
+  padding-top: env(safe-area-inset-right, 0px);
+  padding-bottom: env(safe-area-inset-left, 0px);
+}
+:root[data-turned] { --gutter-l: 16px; --gutter-r: 16px; }
 
-@media (max-width: 380px) {
-  .steps li { grid-template-columns: 1fr; justify-items: start; }
-  .widget { width: 4.4rem; }
-}
+
+:root[data-narrow] .steps li { grid-template-columns: 1fr; justify-items: start; }
+:root[data-narrow] .widget { width: 4.4rem; }
+
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }

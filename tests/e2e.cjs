@@ -382,7 +382,7 @@ async function openBoard(page, key) {
   }
 
   // A small phone, a tablet, a desktop and a phone held sideways.
-  for (const [w, h, name] of [[375, 667, 'small-phone'], [1280, 800, 'desktop'], [1024, 768, 'tablet'], [844, 390, 'phone-landscape']]) {
+  for (const [w, h, name] of [[375, 667, 'small-phone'], [1280, 800, 'desktop'], [1024, 768, 'tablet']]) {
     await page.setViewportSize({ width: w, height: h });
     // Each size starts afresh, so its board is dealt for that screen's shape.
     await page.goto(url('test=1&fresh=1&seed=5'));
@@ -402,6 +402,25 @@ async function openBoard(page, key) {
     await shot(page, `13-${name}-board`);
     await page.click('#back');
   }
+
+  // A phone held sideways keeps the game upright for the phone, like an app locked to portrait.
+  const sideways = await browser.newContext({ viewport: { width: 844, height: 390 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
+  const turned = await sideways.newPage();
+  turned.on('pageerror', (e) => errors.push(e.message));
+  await turned.goto(url('test=1&fresh=1&seed=5'));
+  assert.strictEqual(await turned.getAttribute('html', 'data-turned'), 'left');
+  await checkNoScroll(turned, 'sideways phone home');
+  await shot(turned, '14-sideways-home');
+  await turned.tap('#play-btn');
+  while (await turned.isVisible('#overlay:not([hidden]) [data-close]')) await turned.tap('#overlay [data-close]');
+  const turnedTile = await turned.evaluate(() => parseFloat(document.getElementById('board').style.getPropertyValue('--tw')));
+  assert.ok(turnedTile >= 80, `sideways phone gets portrait-sized tiles (${turnedTile}px)`);
+  const pairs = await turned.evaluate(() => window.__mnm.matches()[0]);
+  for (const id of pairs) await turned.tap(`#board .tile[data-id="${id}"]`);
+  await turned.waitForFunction(() => !window.__mnm.game.busy);
+  assert.strictEqual(await turned.evaluate(() => window.__mnm.engine.remaining(window.__mnm.game.tiles)), 14, 'taps land on the turned board');
+  await shot(turned, '14-sideways-board');
+  await sideways.close();
 
   assert.deepStrictEqual(errors, [], 'no page errors');
   await browser.close();
