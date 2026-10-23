@@ -1,5 +1,7 @@
 /* Movie Night Mahjong: chapters, boards and trivia.
  * Layout blocks are [x, y, cols, rows, layer] in half-tile units (see engine.js).
+ * difficulty is how often a player who takes any pair at random would get stuck (0 to 1); each
+ * deal is picked to come close to it. hard marks the Hard levels, which get a warning and tips.
  * Trivia names films and facts in text only. No photos, posters, likenesses or lyrics.
  */
 (function (root) {
@@ -59,6 +61,7 @@
     boards: [
       {
         name: 'Opening Night',
+        difficulty: 0.03,
         blocks: [[0, 0, 4, 3, 0], [2, 1, 2, 2, 1]],
         faces: ['car', 'ticket', 'popcorn', 'soda'],
         cardFace: 'car',
@@ -72,6 +75,7 @@
       },
       {
         name: 'Ticket Booth',
+        difficulty: 0.15,
         blocks: [[0, 0, 5, 4, 0], [3, 2, 2, 2, 1]],
         faces: ['car', 'ticket', 'popcorn', 'soda', 'hotdog', 'star'],
         cardFace: 'ticket',
@@ -85,6 +89,7 @@
       },
       {
         name: 'Snack Bar',
+        difficulty: 0.35,
         blocks: [[0, 0, 6, 4, 0], [2, 1, 4, 3, 1]],
         faces: ['car', 'ticket', 'popcorn', 'soda', 'hotdog', 'star', 'moon', 'shake'],
         cardFace: 'popcorn',
@@ -98,6 +103,8 @@
       },
       {
         name: 'Back Row',
+        difficulty: 0.55,
+        hard: true,
         blocks: [[0, 0, 7, 4, 0], [1, 1, 6, 3, 1], [5, 3, 2, 1, 2]],
         faces: ['car', 'ticket', 'popcorn', 'soda', 'hotdog', 'star', 'moon', 'shake', 'reel', 'glasses'],
         cardFace: 'moon',
@@ -111,6 +118,7 @@
       },
       {
         name: 'Double Feature',
+        difficulty: 0.35,
         blocks: [[0, 0, 8, 4, 0], [1, 1, 3, 3, 1], [9, 1, 3, 3, 1], [2, 2, 2, 2, 2], [10, 2, 2, 2, 2]],
         faces: ['car', 'ticket', 'popcorn', 'soda', 'hotdog', 'star', 'moon', 'shake', 'reel', 'glasses', 'sign', 'clapper'],
         cardFace: 'reel',
@@ -124,6 +132,8 @@
       },
       {
         name: 'Grand Finale',
+        difficulty: 0.8,
+        hard: true,
         blocks: [[0, 0, 8, 4, 0], [2, 1, 6, 3, 1], [4, 2, 4, 2, 2], [6, 2, 2, 2, 3]],
         faces: ['car', 'ticket', 'popcorn', 'soda', 'hotdog', 'star', 'moon', 'shake', 'reel', 'glasses', 'sign', 'clapper'],
         cardFace: 'star',
@@ -150,6 +160,7 @@
     boards: [
       {
         name: 'Booth for Two',
+        difficulty: 0.25,
         blocks: [[0, 0, 6, 3, 0], [1, 1, 2, 2, 1], [7, 1, 2, 2, 1]],
         faces: ['jukebox', 'burger', 'record', 'phone'],
         cardFace: 'jukebox',
@@ -163,6 +174,7 @@
       },
       {
         name: 'Counter Stools',
+        difficulty: 0.45,
         blocks: [[0, 0, 8, 2, 0], [2, 1, 6, 1, 1], [4, 1, 4, 1, 2],
           [1, 5, 1, 1, 0], [5, 5, 1, 1, 0], [9, 5, 1, 1, 0], [13, 5, 1, 1, 0],
           [1, 5, 1, 1, 1], [5, 5, 1, 1, 1], [9, 5, 1, 1, 1], [13, 5, 1, 1, 1]],
@@ -178,6 +190,8 @@
       },
       {
         name: 'Jukebox Corner',
+        difficulty: 0.65,
+        hard: true,
         blocks: [[2, 0, 5, 1, 0], [0, 2, 7, 3, 0], [2, 3, 5, 2, 1]],
         faces: ['jukebox', 'burger', 'record', 'phone', 'cone', 'sax', 'skate', 'mug'],
         cardFace: 'burger',
@@ -191,6 +205,7 @@
       },
       {
         name: 'Malt Shop',
+        difficulty: 0.45,
         blocks: [[0, 0, 8, 1, 0], [1, 2, 7, 1, 0], [2, 4, 6, 1, 0], [3, 6, 5, 1, 0],
           [1, 1, 7, 1, 1], [2, 3, 6, 1, 1], [3, 5, 5, 1, 1]],
         faces: ['jukebox', 'burger', 'record', 'phone', 'cone', 'sax', 'skate', 'mug', 'guitar', 'mic'],
@@ -205,6 +220,7 @@
       },
       {
         name: 'Sock Hop',
+        difficulty: 0.6,
         blocks: [[0, 0, 8, 4, 0], [1, 1, 2, 3, 1], [11, 1, 2, 3, 1], [6, 2, 2, 2, 1], [2, 2, 1, 2, 2], [12, 2, 1, 2, 2]],
         faces: ['jukebox', 'burger', 'record', 'phone', 'cone', 'sax', 'skate', 'mug', 'guitar', 'mic', 'pie', 'note'],
         cardFace: 'skate',
@@ -219,6 +235,8 @@
       },
       {
         name: 'Last Dance',
+        difficulty: 0.85,
+        hard: true,
         blocks: [[0, 0, 8, 4, 0], [1, 1, 7, 3, 1], [3, 2, 5, 2, 2], [7, 3, 1, 1, 3]],
         faces: ['jukebox', 'burger', 'record', 'phone', 'cone', 'sax', 'skate', 'mug', 'guitar', 'mic', 'pie', 'note'],
         cardFace: 'note',
@@ -248,6 +266,7 @@
     boards: [
       {
         name: 'Castle Walls',
+        difficulty: 0.1,
         grid: ['####', '####', '####', '####'],
         pieces: ['rook'],
         newPieces: ['rook'],
@@ -262,6 +281,7 @@
       },
       {
         name: 'Bishop’s Path',
+        difficulty: 0.3,
         grid: ['#####', '#####', '##.##', '#####', '#####'],
         pieces: ['rook', 'bishop'],
         newPieces: ['bishop'],
@@ -276,6 +296,7 @@
       },
       {
         name: 'Knight Moves',
+        difficulty: 0.4,
         grid: ['######', '#.##.#', '######', '#.##.#', '######'],
         pieces: ['rook', 'bishop', 'knight'],
         newPieces: ['knight'],
@@ -290,6 +311,7 @@
       },
       {
         name: 'Royal Court',
+        difficulty: 0.5,
         grid: ['.####.', '######', '######', '######', '######', '.####.'],
         pieces: ['rook', 'bishop', 'knight', 'king', 'pawn'],
         newPieces: ['king', 'pawn'],
@@ -304,6 +326,7 @@
       },
       {
         name: 'The Queen Arrives',
+        difficulty: 0.5,
         grid: ['######', '##..##', '#.##.#', '#.##.#', '##..##', '######'],
         pieces: ['rook', 'bishop', 'knight', 'king', 'pawn', 'queen'],
         newPieces: ['queen'],
@@ -318,6 +341,8 @@
       },
       {
         name: 'Checkmate',
+        difficulty: 0.85,
+        hard: true,
         grid: ['######', '######', '######', '######', '######', '######'],
         pieces: ['rook', 'bishop', 'knight', 'king', 'pawn', 'queen'],
         newPieces: [],

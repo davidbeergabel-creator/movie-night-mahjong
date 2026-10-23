@@ -130,21 +130,93 @@
   }
 
   // Deals a new board: every tile gets a face, matching faces come in pairs, and it can be cleared.
-  function deal(blocks, faceIds, rng, transposed) {
+  // `trap` (0 to 1) is how often a pair takes the same face as a pair lying on top of it. That sets
+  // the classic trap: with three copies free, taking the wrong two buries the fourth under its twin.
+  function deal(blocks, faceIds, rng, transposed, trap) {
     var positions = layoutPositions(blocks, transposed);
     var pairs = removalOrder(positions, allPresent(positions.length), rng);
     if (!pairs) throw new Error('This layout cannot be dealt');
-    var pairFaces = [];
-    for (var i = 0; i < pairs.length; i++) pairFaces.push(faceIds[i % faceIds.length]);
-    shuffle(pairFaces, rng);
-    var tiles = positions.map(function (p, id) {
-      return { id: id, x: p.x, y: p.y, z: p.z, face: null, present: true };
+    var nb = neighbors(positions);
+    // Each face gets a fair share of the pairs.
+    var quota = {};
+    shuffle(faceIds.slice(), rng).forEach(function (f, i) {
+      quota[f] = Math.floor(pairs.length / faceIds.length) + (i < pairs.length % faceIds.length ? 1 : 0);
     });
-    pairs.forEach(function (pair, k) {
-      tiles[pair[0]].face = pairFaces[k];
-      tiles[pair[1]].face = pairFaces[k];
+    var faceOf = new Array(positions.length);
+    pairs.forEach(function (pair) {
+      var choice = null;
+      if (trap && rng() < trap) {
+        // Tiles on top of this pair were taken earlier in the solution, so their faces are set.
+        var above = [];
+        pair.forEach(function (t) {
+          nb[t].above.forEach(function (o) { if (faceOf[o] && quota[faceOf[o]] > 0) above.push(faceOf[o]); });
+        });
+        if (above.length) choice = above[Math.floor(rng() * above.length)];
+      }
+      if (!choice) {
+        var open = Object.keys(quota).filter(function (f) { return quota[f] > 0; });
+        choice = open[Math.floor(rng() * open.length)];
+      }
+      quota[choice]--;
+      faceOf[pair[0]] = faceOf[pair[1]] = choice;
     });
-    return tiles;
+    return positions.map(function (p, id) {
+      return { id: id, x: p.x, y: p.y, z: p.z, face: faceOf[id], present: true };
+    });
+  }
+
+  // Lists the pairs on offer for any set of present tiles, fast enough to play thousands of
+  // practice games. Positions and faces are read once, as they are now.
+  function pairFinder(tiles) {
+    var nb = neighbors(tiles);
+    var faces = tiles.map(function (t) { return t.face; });
+    return function (present) {
+      var byFace = {};
+      for (var i = 0; i < present.length; i++) {
+        if (present[i] && isFreeAt(i, present, nb)) (byFace[faces[i]] = byFace[faces[i]] || []).push(i);
+      }
+      var out = [];
+      Object.keys(byFace).forEach(function (f) {
+        var ids = byFace[f];
+        for (var a = 0; a < ids.length; a++) {
+          for (var b = a + 1; b < ids.length; b++) out.push([ids[a], ids[b]]);
+        }
+      });
+      return out;
+    };
+  }
+
+  // Spots a board that can no longer be cleared, whatever happens next: a tile resting on top of
+  // every other remaining copy of itself can never be matched.
+  function doomCheck(tiles) {
+    var nb = neighbors(tiles);
+    var faces = tiles.map(function (t) { return t.face; });
+    var under = tiles.map(function () { return {}; });
+    nb.forEach(function (n, u) { n.above.forEach(function (t) { under[t][u] = true; }); });
+    return function (present) {
+      var byFace = {};
+      for (var i = 0; i < present.length; i++) if (present[i]) (byFace[faces[i]] = byFace[faces[i]] || []).push(i);
+      for (var f in byFace) {
+        var ids = byFace[f];
+        for (var a = 0; a < ids.length; a++) {
+          var buried = true;
+          for (var b = 0; b < ids.length; b++) {
+            if (a !== b && !under[ids[a]][ids[b]]) { buried = false; break; }
+          }
+          if (buried) return true;
+        }
+      }
+      return false;
+    };
+  }
+
+  // How promising a move looks to the solver: tiles that cover many others, and high ones, first.
+  function moveScore(tiles) {
+    var covers = tiles.map(function () { return 0; });
+    neighbors(tiles).forEach(function (n) { n.above.forEach(function (t) { covers[t]++; }); });
+    return function (p, o) {
+      return covers[o[0]] + covers[o[1]] + (tiles[o[0]].z + tiles[o[1]].z) * 0.5;
+    };
   }
 
   function presentList(tiles) {
@@ -247,6 +319,9 @@
     neighbors: neighbors,
     removalOrder: removalOrder,
     deal: deal,
+    pairFinder: pairFinder,
+    doomCheck: doomCheck,
+    moveScore: moveScore,
     isFree: isFree,
     freeTileIds: freeTileIds,
     availableMatches: availableMatches,

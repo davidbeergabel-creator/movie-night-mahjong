@@ -4,6 +4,7 @@
 
   var E = window.MNMEngine;
   var CH = window.MNMChess;
+  var P = window.MNMPuzzle;
   var ART = window.MNMArt;
   var C = window.MNMContent;
   var CHAPTERS = C.CHAPTERS;
@@ -15,6 +16,8 @@
   var TILE_ASPECT = 1.25;
   var LAYER_SHIFT = 0.07;
   var MAX_TILE = 116;
+  var HINTS = 3;
+  var SHUFFLES = 3;
 
   function $(id) { return document.getElementById(id); }
 
@@ -96,10 +99,12 @@
     return {
       settings: { textSize: 'standard', dimBlocked: true, showMatch: false, sound: true },
       cleared: {},
+      stars: {},
       cards: {},
       seenIntro: {},
       seenHowTo: false,
       seenChessHowTo: false,
+      seenHard: false,
       games: {},
       daily: {},
       lastPlayed: null,
@@ -130,6 +135,8 @@
     });
     s.seenHowTo = !!data.seenHowTo;
     s.seenChessHowTo = !!data.seenChessHowTo;
+    s.seenHard = !!data.seenHard;
+    s.stars = plainObject(data.stars);
     s.games = plainObject(data.games);
     s.daily = plainObject(data.daily);
     if (data.current && typeof data.current.level === 'number' && Array.isArray(data.current.tiles)) {
@@ -182,7 +189,7 @@
       history: game.history,
       moves: game.moves,
       hints: game.hints,
-      rescues: game.rescues
+      shuffles: game.shuffles
     };
   }
 
@@ -191,7 +198,7 @@
   // A spec says which board a game is:
   //   { kind: 'chapter', key: 'drive-in-3' }
   //   { kind: 'daily', key: 'daily-2026-10-22' }
-  //   { kind: 'friend', key: 'friend', ref: 'drive-in-3', theirHints: 2 }  (a board someone sent)
+  //   { kind: 'friend', key: 'friend', ref: 'drive-in-3', theirHints: 2, theirShuffles: 0 }  (a board someone sent)
   function boardForKey(key) {
     var found = lookup(key);
     if (found) return found.board;
@@ -266,6 +273,9 @@
 
   var dailyCache = {};
 
+  // The week gets harder as it goes, like a newspaper crossword: an easy Monday, a hard Saturday.
+  var DAILY_DIFFICULTY = [0.6, 0.3, 0.4, 0.5, 0.6, 0.7, 0.85];
+
   // Everyone gets the same board on the same day: the date picks the layout, the tiles and the deal.
   function dailyBoard(date) {
     if (dailyCache[date]) return dailyCache[date];
@@ -281,10 +291,13 @@
     });
     var layout = layouts[Math.floor(rng() * layouts.length)];
     var count = Math.min(12, Math.max(8, Math.round(layout.tiles / 5)));
+    var weekday = parseDate(date).getDay();
     dailyCache[date] = {
       name: longDate(date),
       daily: true,
       date: date,
+      difficulty: DAILY_DIFFICULTY[weekday],
+      hard: weekday === 5 || weekday === 6,
       blocks: layout.blocks,
       tiles: layout.tiles,
       faces: E.shuffle(faces.slice(), rng).slice(0, count),
@@ -306,7 +319,11 @@
   }
 
   function stamp(date, result) {
-    if (!save.daily[date]) save.daily[date] = { hints: result.hints, moves: result.moves };
+    if (!save.daily[date]) save.daily[date] = { hints: result.hints, shuffles: result.shuffles, stars: result.stars, moves: result.moves };
+  }
+
+  function difficultyWord(board) {
+    return board.hard ? 'hard' : board.difficulty <= 0.35 ? 'easy' : 'medium';
   }
 
   var calendarMonth = null;
@@ -337,8 +354,9 @@
     }
     $('calendar').innerHTML = cells;
     var n = stampsIn(y, m);
-    $('daily-note').textContent = (n === 0 ? 'No stamps yet this month.' : n + (n === 1 ? ' stamp' : ' stamps') + ' this month.') +
-      ' A new board every day, and no streak to lose.';
+    $('daily-note').textContent = 'Today’s board is ' + difficultyWord(dailyBoard(date)) + '. ' +
+      (n === 0 ? 'No stamps yet this month.' : n + (n === 1 ? ' stamp' : ' stamps') + ' this month.') +
+      ' Boards get harder through the week, and there’s no streak to lose.';
     $('daily-action').innerHTML = save.daily[date]
       ? '<p class="stamped-chip">' + ART.icon('star') + 'Stamped today. See you tomorrow!</p>'
       : '<button id="daily-play" class="btn btn-primary btn-xl" type="button">' +
@@ -350,7 +368,8 @@
       '<p class="eyebrow">Daily board · ' + esc(longDate(date)) + '</p>' +
       '<h2 id="sheet-title">Stamped!</h2>' +
       '<div class="big-stamp" aria-hidden="true">' + ART.icon('star') + '</div>' +
-      '<p class="question">You cleared it using ' + esc(hintsText(result.hints)) + '. ' + esc(stampsLine(date)) + '</p>' +
+      starsRow(result.stars) +
+      '<p class="question">You cleared it ' + esc(helpText(result)) + '. ' + esc(stampsLine(date)) + '</p>' +
       '<p>A new board arrives tomorrow.</p>' +
       shareBox(result, 'Send this board to a friend') +
       '<div class="sheet-actions"><button class="btn btn-primary btn-xl" type="button" data-go="home" data-autofocus>Home</button>' +
@@ -368,8 +387,34 @@
     return local ? location.origin + location.pathname : SITE;
   }
 
-  function hintsText(n) {
-    return n === 0 ? 'no hints' : n === 1 ? '1 hint' : n + ' hints';
+  function plural(n, word) {
+    return n + ' ' + word + (n === 1 ? '' : 's');
+  }
+
+  // 'with no hints or shuffles', 'using 1 hint', 'using 2 hints and 1 shuffle'
+  function helpText(result) {
+    if (!result.hints && !result.shuffles) return 'with no hints or shuffles';
+    var parts = [];
+    if (result.hints) parts.push(plural(result.hints, 'hint'));
+    if (result.shuffles) parts.push(plural(result.shuffles, 'shuffle'));
+    return 'using ' + parts.join(' and ');
+  }
+
+  // Three stars for a board cleared with no help, two for a little help, one for clearing it at all.
+  // Undo is always free and never costs a star.
+  function starsFor(hints, shuffles) {
+    var help = (hints || 0) + (shuffles || 0);
+    return help === 0 ? 3 : help <= 2 ? 2 : 1;
+  }
+
+  function starIcons(n) {
+    var out = '';
+    for (var i = 0; i < 3; i++) out += '<span class="star' + (i < n ? ' on' : '') + '">' + ART.icon('star') + '</span>';
+    return out;
+  }
+
+  function starsRow(n) {
+    return '<p class="stars-row" role="img" aria-label="' + plural(n, 'star') + ' out of 3">' + starIcons(n) + '</p>';
   }
 
   // The link holds everything needed to deal the same board: which one, its seed and its orientation.
@@ -378,14 +423,15 @@
       play: refOf(result.spec),
       seed: String(result.seed),
       o: result.transposed ? 't' : 'w',
-      h: String(result.hints)
+      h: String(result.hints),
+      s: String(result.shuffles)
     });
     return siteUrl() + '?' + q.toString();
   }
 
   function shareBox(result, label) {
     var name = boardName(refOf(result.spec)) || 'this board';
-    var text = 'I cleared “' + name + '” in Movie Night Mahjong using ' + hintsText(result.hints) +
+    var text = 'I cleared “' + name + '” in Movie Night Mahjong ' + helpText(result) +
       '. Here’s the very same board for you: ' + shareLink(result);
     return '<div class="share" data-text="' + esc(text) + '">' +
       '<button class="btn btn-ghost" type="button" data-share>' + esc(label) + '</button>' +
@@ -421,26 +467,30 @@
     }
   }
 
-  // ?play=drive-in-3&seed=123&o=t&h=2 -> the board a friend sent.
+  // ?play=drive-in-3&seed=123&o=t&h=2&s=0 -> the board a friend sent, and the hints and shuffles they used.
   function readFriendLink() {
     var ref = params.get('play');
     if (!ref || !boardForKey(ref)) return null;
     var rawSeed = params.get('seed');
     var seed = Number(rawSeed);
     if (rawSeed === null || rawSeed === '' || !isFinite(seed)) return null;
-    var h = params.get('h');
+    function used(name) {
+      var v = parseInt(params.get(name), 10);
+      return isNaN(v) ? null : Math.max(0, v);
+    }
     return {
       ref: ref,
       seed: seed >>> 0,
       transposed: params.get('o') === 't',
-      theirHints: h === null || h === '' || isNaN(parseInt(h, 10)) ? null : Math.max(0, parseInt(h, 10))
+      theirHints: used('h'),
+      theirShuffles: used('s') || 0
     };
   }
 
   function forgetFriendLink() {
     try {
       var q = new URLSearchParams(location.search);
-      ['play', 'seed', 'o', 'h'].forEach(function (k) { q.delete(k); });
+      ['play', 'seed', 'o', 'h', 's'].forEach(function (k) { q.delete(k); });
       var rest = q.toString();
       history.replaceState(null, '', location.pathname + (rest ? '?' + rest : '') + location.hash);
     } catch (e) { /* the address bar keeps the link; nothing else depends on it */ }
@@ -452,7 +502,8 @@
     invite = link;
     var board = boardForKey(link.ref);
     var theirs = link.theirHints === null ? ''
-      : '<p>Your friend cleared it using ' + hintsText(link.theirHints) + '.</p>';
+      : '<p>Your friend cleared it ' + helpText({ hints: link.theirHints, shuffles: link.theirShuffles }) +
+        ' and earned ' + plural(starsFor(link.theirHints, link.theirShuffles), 'star') + '.</p>';
     openSheet(
       '<p class="eyebrow">A friend sent you a board</p>' +
       '<h2 id="sheet-title">' + esc(board.name) + '</h2>' +
@@ -466,7 +517,7 @@
   function playInvite() {
     var link = invite;
     if (!link) return;
-    var spec = { kind: 'friend', key: 'friend', ref: link.ref, theirHints: link.theirHints };
+    var spec = { kind: 'friend', key: 'friend', ref: link.ref, theirHints: link.theirHints, theirShuffles: link.theirShuffles };
     var saved = save.games.friend;
     var same = saved && saved.spec.ref === link.ref && saved.seed === link.seed;
     track('friend_board_start', { board: link.ref });
@@ -474,15 +525,18 @@
   }
 
   function showFriendResult(result) {
-    var mine = result.hints;
-    var theirs = result.spec.theirHints;
-    var line;
-    if (theirs === null || theirs === undefined) line = 'You used ' + hintsText(mine) + '.';
-    else if (mine === theirs) line = mine === 0 ? 'Neither of you needed a hint.' : 'You both used ' + hintsText(mine) + '.';
-    else line = 'You used ' + hintsText(mine) + '. Your friend used ' + hintsText(theirs) + '.';
+    var mine = result.stars;
+    var spec = result.spec;
+    var line = 'You cleared it ' + helpText(result) + '.';
+    if (spec.theirHints !== null && spec.theirHints !== undefined) {
+      var theirs = starsFor(spec.theirHints, spec.theirShuffles);
+      line = mine === theirs ? 'You both earned ' + plural(mine, 'star') + '.'
+        : 'You earned ' + plural(mine, 'star') + '. Your friend earned ' + plural(theirs, 'star') + '.';
+    }
     openSheet(
       '<p class="eyebrow">Your friend’s board</p>' +
       '<h2 id="sheet-title">Board cleared!</h2>' +
+      starsRow(mine) +
       '<p class="question">' + esc(line) + '</p>' +
       shareBox(result, 'Send it back to your friend') +
       '<div class="sheet-actions"><button class="btn btn-primary btn-xl" type="button" data-go="home" data-autofocus>Home</button></div>',
@@ -496,15 +550,22 @@
     return board.grid ? 'chess' : 'classic';
   }
 
+  // pairs, doomed and score feed the solver (puzzle.js); see pairFinder, doomCheck and moveScore.
   var RULES = {
     classic: {
-      deal: function (board, rng, transposed) { return E.deal(board.blocks, board.faces, rng, transposed); },
+      deal: function (board, rng, transposed, trap) { return E.deal(board.blocks, board.faces, rng, transposed, trap); },
       matches: function (tiles) { return E.availableMatches(tiles); },
+      pairs: function (tiles) { return E.pairFinder(tiles); },
+      doomed: function (tiles) { return E.doomCheck(tiles); },
+      score: function (tiles) { return E.moveScore(tiles); },
       rescue: function (tiles, board, transposed, rng) { return E.rescue(tiles, board.blocks, transposed, rng); }
     },
     chess: {
       deal: function (board, rng) { return CH.deal(board, rng); },
       matches: function (tiles, board) { return CH.availableMatches(tiles, board); },
+      pairs: function (tiles, board) { return CH.pairFinder(tiles, board); },
+      doomed: function (tiles, board) { return CH.doomCheck(tiles, board); },
+      score: null,
       rescue: function (tiles, board, transposed, rng) { return CH.rescue(tiles, board, rng); }
     }
   };
@@ -515,6 +576,52 @@
 
   function currentMatches() {
     return rules().matches(game.tiles, game.board);
+  }
+
+  // Deals a handful of boards from the seed and keeps the one whose difficulty comes closest to
+  // the board's. Harder boards also stack twins on top of each other more often. The same seed
+  // always gives the same board, so a friend's link and the daily board match for everyone.
+  function dealFor(board, seed, transposed) {
+    var rule = RULES[modeOf(board)];
+    var rng = E.mulberry32(seed);
+    var target = board.difficulty || 0;
+    var trap = target > 0.5 ? 1 : target > 0.2 ? 0.5 : 0;
+    return P.pickDeal(
+      function () { return rule.deal(board, rng, transposed, trap); },
+      function (tiles) { return rule.pairs(tiles, board); },
+      target, rng, 16, 24
+    ).tiles;
+  }
+
+  // Looks for a way to clear the board from where it stands: { solvable, move }.
+  function solveTiles(tiles) {
+    var rule = rules();
+    return P.solve(rule.pairs(tiles, game.board), tiles.map(function (t) { return t.present; }), {
+      faces: tiles.map(function (t) { return t.face; }),
+      allFreeSafe: game.mode === 'classic',
+      doomed: rule.doomed(tiles, game.board),
+      score: rule.score ? rule.score(tiles) : undefined
+    });
+  }
+
+  // After a dead end: how many steps back the board could still be cleared. Taking a pair never
+  // rescues a board, so every board between the deal (or the last shuffle) and the last clearable
+  // one is clearable too, and a binary search finds it in a few looks.
+  function movesBack() {
+    var boards = game.history.map(restoreTiles).concat([game.tiles]);
+    var lo = 0;
+    for (var i = 1; i < boards.length; i++) if (shuffledBetween(boards[i - 1], boards[i])) lo = i;
+    var hi = boards.length - 1;
+    while (hi - lo > 1) {
+      var mid = (lo + hi) >> 1;
+      if (solveTiles(boards[mid]).solvable === true) lo = mid;
+      else hi = mid;
+    }
+    return boards.length - 1 - lo;
+  }
+
+  function shuffledBetween(a, b) {
+    return a.some(function (t, i) { return t.present && (t.face !== b[i].face || t.x !== b[i].x || t.y !== b[i].y); });
   }
 
   // ---------- Sound ----------
@@ -668,6 +775,21 @@
     return level ? 'Level ' + level : found.chapter.short + ' ' + (found.index + 1);
   }
 
+  // Best stars on a board. Boards cleared before stars existed count one.
+  function starsOn(key) {
+    return save.stars[key] || (save.cleared[key] ? 1 : 0);
+  }
+
+  function totalStars() {
+    var n = 0;
+    CHAPTERS.forEach(function (ch) { ch.boards.forEach(function (b, i) { n += starsOn(boardKey(ch, i)); }); });
+    return n;
+  }
+
+  function miniStars(n) {
+    return '<span class="mini-stars">' + starIcons(n) + '</span>';
+  }
+
   // What the big button on the home screen plays.
   function homePlay() {
     var last = save.lastPlayed && save.games[save.lastPlayed] && lookup(save.lastPlayed);
@@ -677,7 +799,8 @@
         label: boardLabel(target),
         sub: (last ? 'Resume · ' : '') + target.chapter.title + ' · ' + target.board.name,
         action: 'board:' + target.key,
-        chapter: target.chapter
+        chapter: target.chapter,
+        hard: !!target.board.hard
       };
     }
     if (!save.daily[today()]) {
@@ -690,12 +813,14 @@
   function renderHome() {
     var play = homePlay();
     var btn = $('play-btn');
-    btn.textContent = play.label;
+    btn.innerHTML = (play.hard ? '<span class="play-tag">' + ART.icon('bolt') + 'Hard level</span>' : '') +
+      '<span class="play-label">' + esc(play.label) + '</span>';
+    btn.classList.toggle('hard', !!play.hard);
     btn.dataset.action = play.action;
     $('play-sub').textContent = play.sub;
-    var stars = Object.keys(save.cleared).length;
+    var stars = totalStars();
     $('stars-count').textContent = stars;
-    $('stars-chip').setAttribute('aria-label', stars + (stars === 1 ? ' board' : ' boards') + ' cleared. Open chapters.');
+    $('stars-chip').setAttribute('aria-label', plural(stars, 'star') + ' earned. Open chapters.');
     var emblem = $('emblem');
     if (emblem.dataset.face !== play.chapter.emblem) {
       emblem.innerHTML = ART.emblem(play.chapter.emblem);
@@ -790,17 +915,20 @@
       var open = boardUnlocked(ch, i);
       var cleared = !!save.cleared[key];
       var isNext = next && next.key === key;
+      var stars = starsOn(key);
       var status;
       if (save.games[key]) status = 'In progress';
-      else if (cleared) status = ART.icon('star') + 'Cleared';
+      else if (cleared) status = miniStars(stars);
       else if (isNext) status = 'Up next';
       else if (!open) status = ART.icon('lock') + 'Locked';
       else status = b.tiles + (ch.mode === 'chess' ? ' pieces' : ' tiles');
       var level = levelNumber(key);
-      var label = boardLabel(found) + ', ' + b.name + (cleared ? ', cleared' : open ? '' : ', locked');
-      return '<li><button class="board-card' + (cleared ? ' cleared' : '') + (isNext ? ' next' : '') + '" type="button" data-board="' + key + '"' +
-        (open ? '' : ' disabled') + ' aria-label="' + esc(label) + '">' +
-        '<span class="board-num" aria-hidden="true">' + (level || i + 1) + '</span>' +
+      var label = boardLabel(found) + ', ' + b.name + (b.hard ? ', hard level' : '') +
+        (cleared ? ', cleared with ' + plural(stars, 'star') : open ? '' : ', locked');
+      return '<li><button class="board-card' + (cleared ? ' cleared' : '') + (isNext ? ' next' : '') + (b.hard ? ' hard' : '') +
+        '" type="button" data-board="' + key + '"' + (open ? '' : ' disabled') + ' aria-label="' + esc(label) + '">' +
+        '<span class="card-top" aria-hidden="true"><span class="board-num">' + (level || i + 1) + '</span>' +
+        (b.hard ? '<span class="hard-tag">Hard</span>' : '') + '</span>' +
         '<span class="board-art' + (ch.mode === 'chess' ? ' square' : '') + '" aria-hidden="true">' + ART.face(b.cardFace) + '</span>' +
         '<span class="board-name-line">' + esc(b.name) + '</span>' +
         '<span class="board-status">' + status + '</span></button></li>';
@@ -880,8 +1008,10 @@
       '<p><strong>Pick tiles that are free.</strong> A tile is free when nothing sits on top of it and its left or right side is open. Tiles you can’t pick yet look darker.</p></li>' +
       '<li><div class="step-art"><span class="stack">' + miniTile('star', 'dim') + miniTile('moon') + '</span></div>' +
       '<p><strong>Clear the top first.</strong> A tile on top hides the tiles under it until you match it.</p></li>' +
-      '<li><div class="step-art">' + ART.icon('hint') + '</div>' +
-      '<p><strong>No timer, no rush.</strong> Use Hint and Undo as often as you like. If no pairs are left, the tiles reshuffle for you.</p></li>' +
+      '<li><div class="step-art">' + ART.icon('undo') + '</div>' +
+      '<p><strong>Think before you match.</strong> If no pairs are left, you’re stuck. Undo is always free, and each level gives you 3 hints and 3 shuffles.</p></li>' +
+      '<li><div class="step-art stars-art">' + starIcons(3) + '</div>' +
+      '<p><strong>Earn stars.</strong> Clear a level with no hints or shuffles for 3 stars. No timer, no rush.</p></li>' +
       '</ul>' +
       '<div class="sheet-actions"><button class="btn btn-primary btn-xl" type="button" data-close data-autofocus>' +
       (thenPlay ? 'Let’s play' : 'Got it') + '</button></div>',
@@ -922,7 +1052,7 @@
       '<li><div class="step-art">' + miniBoard('rook') + '</div>' +
       '<p><strong>Tap a piece to see its moves.</strong> Dots show the squares it can reach. A glowing ring marks a twin it can capture.</p></li>' +
       '<li><div class="step-art">' + ART.icon('hint') + '</div>' +
-      '<p><strong>No need to know chess.</strong> Each board introduces one piece. Hint and Undo work as always.</p></li>' +
+      '<p><strong>No need to know chess.</strong> Each board introduces one piece. Hints, shuffles and Undo work as always.</p></li>' +
       '</ul>' +
       '<div class="sheet-actions"><button class="btn btn-primary btn-xl" type="button" data-close data-autofocus>' +
       (thenPlay ? 'Let’s play' : 'Got it') + '</button></div>',
@@ -955,8 +1085,38 @@
     );
   }
 
+  // Shown once, before the first Hard board.
+  function showHardIntro() {
+    var chess = game.mode === 'chess';
+    var stats = gameStats(game.spec);
+    openSheet(
+      '<p class="eyebrow">' + esc(stats.kind === 'Level' ? 'Level ' + stats.value + ' · ' + stats.name : stats.name) + '</p>' +
+      '<h2 id="sheet-title">A hard level</h2>' +
+      '<p>' + (chess
+        ? 'On hard boards, the easy captures can leave a piece with no twin in reach.'
+        : 'On hard boards, twins hide under each other, so a careless match can leave you stuck.') + '</p>' +
+      '<ul class="tips">' +
+      '<li>' + (chess
+        ? 'Before you capture, check whether another piece needs one of the two as its partner.'
+        : 'When three of a kind are free, take the two that uncover the most tiles.') + '</li>' +
+      '<li>' + (chess ? 'Pieces in corners have the fewest ways out. Pair them early.' : 'Work on the tall stacks and long rows first. They hide the most.') + '</li>' +
+      '<li>Undo is always free. Your 3 hints show a pair that keeps the board clearable.</li>' +
+      '</ul>' +
+      '<div class="sheet-actions"><button class="btn btn-primary btn-xl" type="button" data-close data-autofocus>I’m ready</button></div>',
+      {
+        onClose: function () {
+          save.seenHard = true;
+          persist();
+          maybeShowIntro();
+        }
+      }
+    );
+  }
+
   function maybeShowIntro() {
-    if (!game || game.spec.kind !== 'chapter') return;
+    if (!game) return;
+    if (game.board.hard && !save.seenHard) { showHardIntro(); return; }
+    if (game.spec.kind !== 'chapter') return;
     var found = lookup(game.spec.key);
     if (game.mode === 'chess') {
       if (!save.seenChessHowTo) showChessHowTo(true);
@@ -997,6 +1157,8 @@
       '<input type="checkbox" id="set-match"' + (st.showMatch ? ' checked' : '') + '></label>' +
       '<label class="switch" for="set-sound"><span>Sounds</span>' +
       '<input type="checkbox" id="set-sound"' + (st.sound ? ' checked' : '') + '></label>' +
+      (game ? '<button class="btn btn-ghost" type="button" data-go="restart">' + ART.icon('restart') +
+        'Start this ' + (game.spec.kind === 'chapter' ? 'level' : 'board') + ' over</button>' : '') +
       '<div class="reset-box">' +
       '<button class="btn btn-danger" type="button" id="reset-start">Start everything over</button>' +
       '<div class="reset-confirm" id="reset-confirm" hidden><p>This clears every cleared board, your album cards and your calendar stamps.</p>' +
@@ -1033,6 +1195,7 @@
     var tv = found.board.trivia;
     openSheet(
       '<p class="eyebrow">' + esc(boardLabel(found)) + ' cleared</p>' +
+      starsRow(result.stars) +
       '<h2 id="sheet-title">' + esc(found.chapter.cardTitle || 'Do you remember?') + '</h2>' + cardArt(found) +
       '<div id="quiz" class="reveal"><p class="question">' + esc(tv.q) + '</p>' +
       '<div class="answers">' + tv.options.map(function (o, i) {
@@ -1079,6 +1242,7 @@
       '<p class="verdict">' + (right ? 'That’s right! ' : 'It was ') + esc(tv.options[tv.answer]) + (right ? '' : '.') + '</p>' +
       '<p>' + esc(tv.fact) + '</p>' +
       '<p class="collected">' + (firstCard ? 'Card added to your Movie Night album.' : 'This card is already in your album.') + '</p>' +
+      (starsOn(found.key) < 3 ? '<p class="star-tip">Clear it with no hints or shuffles for 3 stars.</p>' : '') +
       '<div class="sheet-actions">' + actions + '</div>' +
       shareBox(trivia.result, 'Send this board to a friend');
     sheetLocked = false;
@@ -1116,6 +1280,8 @@
     var board = resolveBoard(spec);
     var saved = save.games[spec.key];
     if (saved && !opts.fresh) {
+      // Games saved before hints and shuffles were limited start with a full set.
+      var limited = typeof saved.shuffles === 'number';
       game = {
         spec: saved.spec,
         transposed: !!saved.transposed,
@@ -1123,8 +1289,8 @@
         tiles: restoreTiles(saved.tiles),
         history: Array.isArray(saved.history) ? saved.history : [],
         moves: saved.moves || 0,
-        hints: saved.hints || 0,
-        rescues: saved.rescues || 0
+        hints: limited ? saved.hints || 0 : 0,
+        shuffles: limited ? saved.shuffles : 0
       };
       track('board_resume', { board: spec.key });
     } else {
@@ -1139,13 +1305,13 @@
         spec: spec,
         transposed: transposed,
         seed: seed,
-        tiles: RULES[modeOf(board)].deal(board, E.mulberry32(seed), transposed),
+        tiles: dealFor(board, seed, transposed),
         history: [],
         moves: 0,
         hints: 0,
-        rescues: 0
+        shuffles: 0
       };
-      track('board_start', { board: spec.key, tiles: board.tiles });
+      track('board_start', { board: spec.key, tiles: board.tiles, difficulty: board.difficulty || 0 });
     }
     game.board = board;
     game.mode = modeOf(board);
@@ -1159,7 +1325,7 @@
     $('stat-kind').textContent = stats.kind;
     $('stat-level').textContent = stats.value;
     $('stat-left-label').textContent = game.mode === 'chess' ? 'Pieces' : 'Tiles';
-    $('board-name').textContent = stats.name;
+    $('board-name').innerHTML = esc(stats.name) + (board.hard ? ' <span class="hard-tag">Hard</span>' : '');
     buildBoard();
     layoutBoard();
     render();
@@ -1167,6 +1333,17 @@
 
     if (!save.seenHowTo && game.mode === 'classic') showHowTo(true);
     else maybeShowIntro();
+    if ($('overlay').hidden && !currentMatches().length) showStuck();
+  }
+
+  // The same deal from the top, with a full set of hints and shuffles.
+  function restartGame() {
+    if (!game) return;
+    var g = game;
+    clearHint();
+    track('restart', { board: g.spec.key, moves: g.moves });
+    startGame(g.spec, { fresh: true, seed: g.seed, transposed: g.transposed });
+    toast('The same board from the start, with ' + HINTS + ' hints and ' + SHUFFLES + ' shuffles.');
   }
 
   function buildBoard() {
@@ -1283,6 +1460,15 @@
     }
     $('tiles-left').textContent = String(E.remaining(tiles));
     $('matches').textContent = String(currentMatches().length);
+    toolBadge('hint', HINTS - game.hints);
+    toolBadge('shuffle', SHUFFLES - game.shuffles);
+  }
+
+  function toolBadge(id, left) {
+    var btn = $(id);
+    btn.querySelector('.badge').textContent = String(left);
+    btn.classList.toggle('spent', left <= 0);
+    btn.setAttribute('aria-label', btn.dataset.name + ', ' + left + ' left');
   }
 
   function renderClassic() {
@@ -1392,83 +1578,124 @@
         boardCleared();
         return;
       }
-      if (!currentMatches().length) rescue(true);
       render();
       persist();
+      if (!currentMatches().length) showStuck();
     }, reducedMotion() ? 40 : 240);
   }
 
-  function rescue(auto) {
-    var how = rules().rescue(game.tiles, game.board, game.transposed, game.rng);
-    game.rescues++;
-    if (how === 'rearranged') layoutBoard();
-    track('rescue', { board: game.spec.key, auto: auto, how: how });
-    if (auto) {
-      var things = game.mode === 'chess' ? 'pieces' : 'tiles';
-      toast(how === 'rearranged'
-        ? 'No pairs were left, so the last ' + things + ' moved to fresh spots.'
-        : 'No pairs were left, so the ' + things + ' were reshuffled for you.');
-    } else {
-      toast(game.mode === 'chess' ? 'Pieces reshuffled.' : 'Tiles reshuffled.');
-    }
+  // No pairs left: the player decides what to do. Nothing reshuffles by itself.
+  function showStuck() {
+    var things = game.mode === 'chess' ? 'pieces' : 'tiles';
+    var shuffles = SHUFFLES - game.shuffles;
+    var back = game.history.length ? movesBack() : 0;
+    var undo = back > 0;
+    track('stuck', { board: game.spec.key, left: E.remaining(game.tiles), back: back });
+    sound('blocked');
+    openSheet(
+      '<p class="eyebrow">' + esc(gameStats(game.spec).name) + '</p>' +
+      '<h2 id="sheet-title">No more matches</h2>' +
+      '<p>There are no pairs left to take.' + (undo ? ' Undo is free, and ' + (back === 1 ? 'one move' : back + ' moves') +
+        ' back the board can still be cleared.' : '') + '</p>' +
+      '<div class="sheet-actions">' +
+      (undo ? '<button class="btn btn-primary btn-xl" type="button" data-go="undo:' + back + '" data-autofocus>' +
+        (back === 1 ? 'Undo the last move' : 'Go back ' + back + ' moves') + '</button>' : '') +
+      (shuffles > 0
+        ? '<button class="btn ' + (undo ? 'btn-ghost' : 'btn-primary btn-xl') + '" type="button" data-go="shuffle"' + (undo ? '' : ' data-autofocus') + '>' +
+          'Shuffle the ' + things + ' (' + shuffles + ' left)</button>'
+        : '<p class="muted-note">No shuffles left on this ' + (game.spec.kind === 'chapter' ? 'level' : 'board') + '.</p>') +
+      '<button class="btn btn-ghost" type="button" data-go="restart">Start over</button>' +
+      '<button class="btn btn-ghost" type="button" data-close>Look at the board</button></div>'
+    );
+  }
+
+  function noneLeft(what) {
+    toast('No ' + what + ' left on this ' + (game.spec.kind === 'chapter' ? 'level' : 'board') +
+      '. Undo is always free, and starting over brings ' + (what === 'hints' ? HINTS : SHUFFLES) + ' fresh ones.');
   }
 
   function onShuffle() {
     if (!game || game.busy) return;
     clearHint();
+    if (game.shuffles >= SHUFFLES) { noneLeft('shuffles'); return; }
     game.history.push(snapshotTiles(game.tiles));
     game.selected = null;
-    rescue(false);
+    game.shuffles++;
+    var how = rules().rescue(game.tiles, game.board, game.transposed, game.rng);
+    if (how === 'rearranged') layoutBoard();
+    track('shuffle', { board: game.spec.key, how: how });
+    var left = SHUFFLES - game.shuffles;
+    toast((game.mode === 'chess' ? 'Pieces' : 'Tiles') + ' reshuffled. ' +
+      (left ? plural(left, 'shuffle') + ' left.' : 'That was the last shuffle.'));
     render();
     persist();
   }
 
   function onUndo() {
+    undoMoves(1);
+  }
+
+  function undoMoves(n) {
     if (!game || game.busy) return;
     clearHint();
     if (!game.history.length) {
       toast('Nothing to undo yet.');
       return;
     }
-    game.tiles = restoreTiles(game.history.pop());
+    n = Math.min(n, game.history.length);
+    game.tiles = restoreTiles(game.history.splice(game.history.length - n, n)[0]);
     game.selected = null;
     sound('undo');
     layoutBoard();
     render();
     persist();
-    track('undo', { board: game.spec.key });
+    track('undo', { board: game.spec.key, moves: n });
   }
 
+  // A hint shows a pair that keeps the board clearable, found by the solver. On a board that can
+  // no longer be cleared, it says how far back to go instead, and that costs no hint.
   function onHint() {
     if (!game || game.busy) return;
     clearHint();
-    var moves = currentMatches();
-    if (!moves.length) {
-      rescue(true);
-      render();
-      persist();
+    if (!currentMatches().length) { showStuck(); return; }
+    if (game.hints >= HINTS) { noneLeft('hints'); return; }
+    var found = solveTiles(game.tiles);
+    if (found.solvable === false) {
+      var back = movesBack();
+      track('hint_dead_end', { board: game.spec.key, back: back });
+      toast('This board can’t be cleared from here. Undo ' +
+        (back === 1 ? 'your last move' : 'your last ' + back + ' moves') + ' to get back on track, or shuffle.');
       return;
     }
     game.selected = null;
-    render();
-    moves[0].forEach(function (id) { tileButton(id).classList.add('hint'); });
-    game.hintTimer = setTimeout(clearHint, 5000);
     game.hints++;
+    render();
+    found.move.forEach(function (id) { tileButton(id).classList.add('hint'); });
+    game.hintTimer = setTimeout(clearHint, 5000);
     sound('hint');
-    toast('These two match. Tap both of them.');
+    var left = HINTS - game.hints;
+    toast('These two match. ' + (left ? plural(left, 'hint') + ' left.' : 'That was your last hint.'));
     track('hint', { board: game.spec.key });
+    persist();
   }
 
   function boardCleared() {
     var finished = game;
     hideToast();
     sound('win');
-    track('board_clear', { board: finished.spec.key, moves: finished.moves, hints: finished.hints, rescues: finished.rescues });
+    var stars = starsFor(finished.hints, finished.shuffles);
+    track('board_clear', { board: finished.spec.key, moves: finished.moves, hints: finished.hints, shuffles: finished.shuffles, stars: stars });
     delete save.games[finished.spec.key];
     if (save.lastPlayed === finished.spec.key) save.lastPlayed = null;
-    var result = { hints: finished.hints, moves: finished.moves, spec: finished.spec, seed: finished.seed, transposed: finished.transposed };
+    var result = {
+      hints: finished.hints, shuffles: finished.shuffles, stars: stars, moves: finished.moves,
+      spec: finished.spec, seed: finished.seed, transposed: finished.transposed
+    };
     game = null;
-    if (finished.spec.kind === 'chapter') save.cleared[finished.spec.key] = true;
+    if (finished.spec.kind === 'chapter') {
+      save.cleared[finished.spec.key] = true;
+      save.stars[finished.spec.key] = Math.max(save.stars[finished.spec.key] || 0, stars);
+    }
     var dailyRef = /^daily-(.+)$/.exec(refOf(finished.spec));
     if (dailyRef) stamp(dailyRef[1], result);
     persist();
@@ -1494,6 +1721,9 @@
     else if (action === 'daily-play') startGame({ kind: 'daily', key: 'daily-' + today() });
     else if (action === 'friend') playInvite();
     else if (action === 'friend-resume' && save.games.friend) startGame(save.games.friend.spec);
+    else if (action.indexOf('undo:') === 0) undoMoves(Number(action.slice(5)) || 1);
+    else if (action === 'shuffle') onShuffle();
+    else if (action === 'restart') restartGame();
     else if (action.indexOf('chapter:') === 0) {
       save.tab = action.slice(8);
       persist();
@@ -1667,6 +1897,7 @@
       get trivia() { return trivia; },
       chess: CH,
       matches: function () { return game ? currentMatches() : []; },
+      solve: function () { return game ? solveTiles(game.tiles) : null; },
       tileButton: tileButton
     };
   }

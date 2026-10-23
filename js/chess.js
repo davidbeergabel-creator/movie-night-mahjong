@@ -107,6 +107,93 @@
     return out;
   }
 
+  // Lists the pairs on offer for any set of present pieces, fast enough for thousands of practice
+  // games. Each piece's lines of movement are worked out once from where the pieces stand now.
+  function pairFinder(tiles, board) {
+    var g = size(board);
+    var bySquare = {};
+    tiles.forEach(function (t) { (bySquare[t.x + ',' + t.y] = bySquare[t.x + ',' + t.y] || []).push(t.id); });
+    function inside(x, y) { return x >= 0 && y >= 0 && x < g.cols && y < g.rows; }
+    var routes = tiles.map(function (t) {
+      var move = MOVES[t.face];
+      if (move.slide) {
+        return {
+          slide: move.slide.map(function (d) {
+            var line = [];
+            for (var x = t.x + d[0], y = t.y + d[1]; inside(x, y); x += d[0], y += d[1]) {
+              if (bySquare[x + ',' + y]) line.push(bySquare[x + ',' + y]);
+            }
+            return line;
+          })
+        };
+      }
+      return {
+        step: move.step.map(function (d) { return bySquare[(t.x + d[0]) + ',' + (t.y + d[1])]; }).filter(Boolean)
+      };
+    });
+    function standing(ids, present) {
+      for (var i = 0; i < ids.length; i++) if (present[ids[i]]) return ids[i];
+      return -1;
+    }
+    return function (present) {
+      var out = [];
+      tiles.forEach(function (t, a) {
+        if (!present[a]) return;
+        var r = routes[a];
+        if (r.slide) {
+          r.slide.forEach(function (line) {
+            for (var i = 0; i < line.length; i++) {
+              var b = standing(line[i], present);
+              if (b < 0) continue;
+              if (b > a && tiles[b].face === t.face) out.push([a, b]);
+              break;
+            }
+          });
+        } else {
+          r.step.forEach(function (ids) {
+            var b = standing(ids, present);
+            if (b > a && tiles[b].face === t.face) out.push([a, b]);
+          });
+        }
+      });
+      return out;
+    };
+  }
+
+  // Spots a board that can no longer be cleared: taking pieces only ever opens lines, so a piece that
+  // could not capture any remaining twin even on an empty board never will.
+  function doomCheck(tiles, board) {
+    var g = size(board);
+    var reachEmpty = tiles.map(function (t) {
+      var move = MOVES[t.face];
+      var ok = {};
+      tiles.forEach(function (o) {
+        if (o.id === t.id || o.face !== t.face) return;
+        var dx = o.x - t.x;
+        var dy = o.y - t.y;
+        var hit = move.slide
+          ? move.slide.some(function (d) {
+            var k = d[0] ? dx / d[0] : dy / d[1];
+            return k > 0 && dx === d[0] * k && dy === d[1] * k;
+          })
+          : move.step.some(function (d) { return d[0] === dx && d[1] === dy; });
+        if (hit) ok[o.id] = true;
+      });
+      return ok;
+    });
+    return function (present) {
+      for (var a = 0; a < tiles.length; a++) {
+        if (!present[a]) continue;
+        var partner = false;
+        for (var b = 0; b < tiles.length; b++) {
+          if (b !== a && present[b] && reachEmpty[a][b]) { partner = true; break; }
+        }
+        if (!partner) return true;
+      }
+      return false;
+    };
+  }
+
   function remaining(tiles) {
     var n = 0;
     tiles.forEach(function (t) { if (t.present) n++; });
@@ -198,6 +285,8 @@
     reachAs: reachAs,
     canMatch: canMatch,
     availableMatches: availableMatches,
+    pairFinder: pairFinder,
+    doomCheck: doomCheck,
     remaining: remaining,
     deal: deal,
     rescue: rescue

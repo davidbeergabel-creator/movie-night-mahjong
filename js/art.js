@@ -271,6 +271,8 @@
     calendar: '<rect x="3" y="5" width="18" height="16" rx="2.5"/><path d="M3 10 H21 M8 3 V7 M16 3 V7"/>',
     chapters: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7.5 4 V20 M16.5 4 V20 M3 9.3 H7.5 M3 14.7 H7.5 M16.5 9.3 H21 M16.5 14.7 H21"/>',
     album: '<rect x="3.5" y="3" width="13" height="17" rx="2"/><path d="M8 21 H18 A2.5 2.5 0 0 0 20.5 18.5 V7"/>',
+    bolt: '<polygon points="13.5,2.5 5,13.5 11,13.5 10,21.5 19,10 13,10" class="fill"/>',
+    restart: '<path d="M4.5 12 A7.5 7.5 0 1 0 7 6.4"/><path d="M7.5 2.5 V6.8 H3.2"/>',
     help: '<circle cx="12" cy="12" r="9"/><path d="M9.4 9.4 A2.7 2.7 0 1 1 12.9 12 C12.3 12.3 12 12.9 12 13.6 V14"/><circle cx="12" cy="17.3" r="1.1" class="fill"/>'
   };
 

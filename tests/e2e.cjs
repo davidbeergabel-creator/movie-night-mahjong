@@ -26,20 +26,36 @@ async function deal(page) {
   return page.evaluate(() => JSON.stringify(window.__mnm.game.tiles.map((t) => [t.x, t.y, t.z, t.face])));
 }
 
-// Taps one available pair. Returns false when the board is done.
+// Taps the pair the solver picks, so the board can always be cleared. Returns false when the board is done.
 async function playPair(page) {
   const pair = await page.evaluate(() => {
-    const g = window.__mnm.game;
-    if (!g) return null;
-    const m = window.__mnm.matches();
-    return m.length ? m[0] : [];
+    if (!window.__mnm.game) return null;
+    const r = window.__mnm.solve();
+    return r.solvable === false ? [] : r.move;
   });
   if (pair === null) return false;
-  assert.ok(pair.length === 2, 'there is always a pair to play (rescue keeps the board going)');
+  assert.ok(pair.length === 2, 'the solver always finds a way on a fair board');
   for (const id of pair) await page.click(`#board .tile[data-id="${id}"]`);
   await waitIdle(page);
   return true;
 }
+
+// Taps the first pair it sees, the way a careless player would, until the board runs out of pairs.
+async function playCarelessly(page) {
+  for (let i = 0; i < 100; i++) {
+    const pair = await page.evaluate(() => window.__mnm.matches()[0] || null);
+    if (!pair) return;
+    for (const id of pair) await page.click(`#board .tile[data-id="${id}"]`);
+    await waitIdle(page);
+  }
+}
+
+async function closeSheets(page) {
+  while (await page.isVisible('#overlay:not([hidden]) [data-close]')) await page.click('#overlay [data-close]');
+  await page.waitForSelector('#overlay', { state: 'hidden' });
+}
+
+const badge = (page, id) => page.textContent(`#${id} .badge`);
 
 async function clearBoard(page) {
   for (let i = 0; i < 200; i++) {
@@ -163,6 +179,7 @@ async function openBoard(page, key) {
     return g.tiles[ids[0]].face === g.tiles[ids[1]].face && ids.every((id) => free.includes(id));
   }, hinted);
   assert.ok(hintOk, 'hinted tiles match and are free');
+  assert.strictEqual(await badge(page, 'hint'), '2', 'three hints per level');
   await shot(page, '04-hint');
 
   // Shuffle keeps the same pictures.
@@ -170,8 +187,10 @@ async function openBoard(page, key) {
   const facesBefore = await faces();
   await page.click('#shuffle');
   assert.strictEqual(await faces(), facesBefore);
+  assert.strictEqual(await badge(page, 'shuffle'), '2', 'three shuffles per level');
 
   await clearBoard(page);
+  assert.strictEqual(await page.getAttribute('#sheet .stars-row', 'aria-label'), '2 stars out of 3', 'a hint and a shuffle cost a star');
   await shot(page, '05-trivia');
   await answerTrivia(page, false);
   await checkNoScroll(page, 'trivia result');
@@ -189,7 +208,7 @@ async function openBoard(page, key) {
   friend.on('pageerror', (e) => errors.push(e.message));
   await friend.goto(url('test=1&' + link.searchParams.toString()));
   await friend.waitForSelector('#sheet-title:has-text("Opening Night")');
-  assert.match(await friend.textContent('#sheet'), /cleared it using (no hints|\d+ hints?)/);
+  assert.match(await friend.textContent('#sheet'), /cleared it using 1 hint and 1 shuffle and earned 2 stars/);
   await shot(friend, '06b-friend-invite');
   await friend.click('[data-go="friend"]');
   await friend.waitForSelector('#game:not([hidden])');
@@ -198,7 +217,7 @@ async function openBoard(page, key) {
   assert.ok(!(await friend.evaluate(() => location.search.includes('play='))), 'the link is cleared from the address bar');
   await clearBoard(friend);
   await friend.waitForSelector('#sheet-title:has-text("Board cleared!")');
-  assert.match(await friend.textContent('#sheet .question'), /You used|Neither of you|You both used/);
+  assert.match(await friend.textContent('#sheet .question'), /You earned 3 stars\. Your friend earned 2 stars\./);
   await shot(friend, '06c-friend-result');
   await friend.close();
 
@@ -272,7 +291,12 @@ async function openBoard(page, key) {
   for (let level = 2; level <= 6; level++) {
     if (level > 2) {
       await page.click(`[data-go="board:drive-in-${level}"]`);
-      if (await page.isVisible('#sheet-title:has-text("New tiles tonight")')) await page.click('[data-close]');
+      // Level 4 is the first hard level: it warns once and offers tips.
+      if (level === 4) {
+        await page.waitForSelector('#sheet-title:has-text("A hard level")');
+        await shot(page, '09-hard-intro');
+      }
+      await closeSheets(page);
     }
     await page.waitForSelector('#overlay', { state: 'hidden' });
     assert.strictEqual(await page.textContent('#stat-level'), String(level));
@@ -312,6 +336,7 @@ async function openBoard(page, key) {
   await answerTrivia(page, true);
   assert.ok(await page.isVisible('[data-go="board:diner-2"]'));
   await page.click('[data-go="home"]');
+  assert.strictEqual(await page.textContent('#stars-count'), '20', '2 stars for Level 1, then 3 for each level cleared without help');
   await page.click('#nav-album');
   assert.match(await page.textContent('#album-count'), /^7 of 18/);
   assert.strictEqual(await page.$$eval('#album-grid [data-card]', (els) => els.length), 6);
@@ -326,7 +351,84 @@ async function openBoard(page, key) {
   await page.click('#nav-chapters');
   await page.click('#tab-drive-in');
   assert.ok(await page.isVisible('#chapter-done'));
+  assert.strictEqual(await page.$$eval('[data-board="drive-in-1"] .star.on', (els) => els.length), 2);
+  assert.strictEqual(await page.$$eval('[data-board="drive-in-6"] .star.on', (els) => els.length), 3);
+  assert.ok(await page.isVisible('[data-board="drive-in-4"] .hard-tag'), 'hard levels are marked');
   await shot(page, '12-chapters-done');
+
+  // A hard level for real: careless play gets stuck, and nothing reshuffles by itself.
+  await page.goto(url('test=1&fresh=1&seed=3'));
+  await page.evaluate(() => localStorage.setItem('movie-night-mahjong.v1', JSON.stringify({
+    seenHowTo: true, cleared: { 'drive-in-1': true, 'drive-in-2': true, 'drive-in-3': true }, stars: { 'drive-in-1': 3 }
+  })));
+  await page.goto(url('test=1&seed=3'));
+  assert.ok(await page.$eval('#play-btn', (el) => el.classList.contains('hard')), 'the home button turns purple for a hard level');
+  assert.match(await page.textContent('#play-btn'), /Hard level\s*Level 4/);
+  assert.strictEqual(await page.textContent('#stars-count'), '5', 'boards cleared before stars count one each');
+  await shot(page, '12h-home-hard');
+  await page.click('#play-btn');
+  await page.waitForSelector('#sheet-title:has-text("A hard level")');
+  await closeSheets(page);
+  assert.match(await page.textContent('#board-name'), /Back Row\s*Hard/);
+  const hardDeal = await deal(page);
+  const fullCount = await tilesLeft(page);
+  await playCarelessly(page);
+  await page.waitForSelector('#sheet-title:has-text("No more matches")');
+  assert.ok(await tilesLeft(page) > 0, 'stuck with tiles still on the board');
+  await shot(page, '12i-stuck');
+  // Looking at the board, then asking for a hint, brings the choices back.
+  await page.click('#sheet [data-close]');
+  await page.click('#hint');
+  await page.waitForSelector('#sheet-title:has-text("No more matches")');
+  assert.strictEqual(await badge(page, 'hint'), '3', 'a hint on a dead end is free');
+  // The stuck sheet counts how far back the board could still be cleared.
+  const wayBack = async () => Number((await page.getAttribute('#sheet [data-go^="undo:"]', 'data-go')).slice(5));
+  const back = await wayBack();
+  assert.ok(back > 1, `this deal went wrong ${back} moves before the end`);
+  // One move back it is still a dead end with pairs left, and a hint says how far to go, for free.
+  await page.click('#sheet [data-close]');
+  await page.click('#undo');
+  await page.click('#hint');
+  await page.waitForSelector('#toast.show');
+  const rest = back - 1 === 1 ? 'your last move' : `your last ${back - 1} moves`;
+  assert.match(await page.textContent('#toast'), new RegExp(`can’t be cleared from here\\. Undo ${rest}`));
+  assert.strictEqual(await badge(page, 'hint'), '3');
+  await shot(page, '12j-hint-on-dead-end');
+  // Playing on from a dead end always ends stuck. Going back from there gives a board a hint can solve.
+  await playCarelessly(page);
+  await page.waitForSelector('#sheet-title:has-text("No more matches")');
+  const stuckLeft = await tilesLeft(page);
+  const back2 = await wayBack();
+  await page.click('#sheet [data-go^="undo:"]');
+  await page.waitForSelector('#overlay', { state: 'hidden' });
+  assert.strictEqual(await tilesLeft(page), stuckLeft + 2 * back2);
+  assert.notStrictEqual((await page.evaluate(() => window.__mnm.solve())).solvable, false);
+  await page.click('#hint');
+  await page.waitForSelector('#toast:has-text("These two match")');
+  assert.strictEqual(await badge(page, 'hint'), '2');
+  await shot(page, '12j-hint-after-way-back');
+  // Start over: the same deal, with a full set of hints and shuffles.
+  await page.click('#game-settings');
+  await page.click('#sheet [data-go="restart"]');
+  await page.waitForSelector('#toast:has-text("from the start")');
+  assert.strictEqual(await deal(page), hardDeal, 'starting over deals the same board');
+  assert.strictEqual(await tilesLeft(page), fullCount);
+  assert.strictEqual(await badge(page, 'hint'), '3');
+  // Help runs out.
+  for (let i = 0; i < 3; i++) await page.click('#hint');
+  for (let i = 0; i < 3; i++) await page.click('#shuffle');
+  assert.strictEqual(await badge(page, 'hint'), '0');
+  assert.strictEqual(await badge(page, 'shuffle'), '0');
+  assert.ok(await page.$eval('#hint', (el) => el.classList.contains('spent')));
+  await page.click('#hint');
+  assert.match(await page.textContent('#toast'), /No hints left/);
+  await page.click('#shuffle');
+  assert.match(await page.textContent('#toast'), /No shuffles left/);
+  await shot(page, '12k-help-spent');
+  await clearBoard(page);
+  assert.strictEqual(await page.getAttribute('#sheet .stars-row', 'aria-label'), '1 star out of 3');
+  await answerTrivia(page, true);
+  assert.match(await page.textContent('#reveal'), /no hints or shuffles for 3 stars/);
 
   // Chess Night: the how-to and piece intro, move dots, an out-of-reach twin, and a full board.
   await page.goto(url('test=1&seed=21'));
@@ -386,7 +488,7 @@ async function openBoard(page, key) {
     await page.setViewportSize({ width: w, height: h });
     // Each size starts afresh, so its board is dealt for that screen's shape.
     await page.goto(url('test=1&fresh=1&seed=5'));
-    await page.evaluate(() => localStorage.setItem('movie-night-mahjong.v1', JSON.stringify({ seenHowTo: true, seenIntro: { 'drive-in-6': true } })));
+    await page.evaluate(() => localStorage.setItem('movie-night-mahjong.v1', JSON.stringify({ seenHowTo: true, seenHard: true, seenIntro: { 'drive-in-6': true } })));
     await page.goto(url('test=1&seed=5'));
     for (const v of ['home', 'daily', 'chapters', 'album']) {
       await page.click(`#nav-${v}`);
@@ -415,7 +517,7 @@ async function openBoard(page, key) {
   while (await turned.isVisible('#overlay:not([hidden]) [data-close]')) await turned.tap('#overlay [data-close]');
   const turnedTile = await turned.evaluate(() => parseFloat(document.getElementById('board').style.getPropertyValue('--tw')));
   assert.ok(turnedTile >= 80, `sideways phone gets portrait-sized tiles (${turnedTile}px)`);
-  const pairs = await turned.evaluate(() => window.__mnm.matches()[0]);
+  const pairs = await turned.evaluate(() => window.__mnm.solve().move);
   for (const id of pairs) await turned.tap(`#board .tile[data-id="${id}"]`);
   await turned.waitForFunction(() => !window.__mnm.game.busy);
   assert.strictEqual(await turned.evaluate(() => window.__mnm.engine.remaining(window.__mnm.game.tiles)), 14, 'taps land on the turned board');

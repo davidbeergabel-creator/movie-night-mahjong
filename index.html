@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Movie Night Mahjong</title>
-<meta name="description" content="A relaxing mahjong solitaire with big, clear tiles and a movie night theme. No timers. Two chapters, a daily board and a bonus chess chapter.">
+<meta name="description" content="A relaxing mahjong solitaire with big, clear tiles and a movie night theme. No timers, real puzzles. Two chapters, a daily board and a bonus chess chapter.">
 <meta name="theme-color" content="#121a3a">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
@@ -103,9 +103,9 @@
         <div id="board" class="board" role="group" aria-label="Tiles"></div>
       </div>
       <nav class="toolbar" aria-label="Game tools">
-        <button id="shuffle" class="tool" type="button"><span class="tool-disc"><span data-icon="shuffle"></span><b class="badge" aria-hidden="true">∞</b></span>Shuffle</button>
-        <button id="hint" class="tool tool-hint" type="button"><span class="tool-disc"><span data-icon="hint"></span><b class="badge" aria-hidden="true">∞</b></span>Hint</button>
-        <button id="undo" class="tool" type="button"><span class="tool-disc"><span data-icon="undo"></span><b class="badge" aria-hidden="true">∞</b></span>Undo</button>
+        <button id="shuffle" class="tool" type="button" data-name="Shuffle"><span class="tool-disc"><span data-icon="shuffle"></span><b class="badge" aria-hidden="true">3</b></span>Shuffle</button>
+        <button id="hint" class="tool tool-hint" type="button" data-name="Hint"><span class="tool-disc"><span data-icon="hint"></span><b class="badge" aria-hidden="true">3</b></span>Hint</button>
+        <button id="undo" class="tool" type="button" aria-label="Undo, as often as you like"><span class="tool-disc"><span data-icon="undo"></span><b class="badge" aria-hidden="true">∞</b></span>Undo</button>
       </nav>
     </section>
 
@@ -128,6 +128,7 @@
 <script src="js/content.js"></script>
 <script src="js/engine.js"></script>
 <script src="js/chess.js"></script>
+<script src="js/puzzle.js"></script>
 <script src="js/art.js"></script>
 <script src="js/app.js"></script>
 </body>
