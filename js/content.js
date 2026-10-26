@@ -33,6 +33,18 @@
     cone: 'Ice cream cone',
     sax: 'Saxophone',
     note: 'Music note',
+    rose: 'Red rose',
+    chocolates: 'Box of chocolates',
+    letter: 'Love letter',
+    ring: 'Diamond ring',
+    champagne: 'Champagne',
+    umbrella: 'Umbrella',
+    candle: 'Candle',
+    perfume: 'Perfume',
+    heels: 'Dancing shoe',
+    tower: 'Eiffel Tower',
+    lipstick: 'Lipstick',
+    gift: 'Gift box',
     rook: 'Rook',
     bishop: 'Bishop',
     knight: 'Knight',
@@ -256,11 +268,114 @@
   };
 
   // Bonus chapter. Grids: '#' is a square with a piece on it, '.' an empty square.
+  var ROMANCE = {
+    id: 'romance',
+    emblem: 'rose',
+    kicker: 'Chapter 3',
+    short: 'Romance',
+    title: 'Romance at the Movies',
+    blurb: 'Roses, champagne and the great love stories of the silver screen.',
+    mode: 'classic',
+    unlockAfter: 'diner',
+    boards: [
+      {
+        name: 'First Date',
+        difficulty: 0.3,
+        blocks: [[0, 0, 6, 4, 0], [3, 2, 3, 2, 1]],
+        faces: ['rose', 'letter', 'champagne', 'ring'],
+        cardFace: 'rose',
+        cardColor: 'cherry',
+        trivia: {
+          q: 'Audrey Hepburn won the Oscar for Best Actress for her first leading role in a Hollywood film. Which film was it?',
+          options: ['Roman Holiday', 'Sabrina', 'Breakfast at Tiffany’s', 'My Fair Lady'],
+          answer: 0,
+          fact: 'In Roman Holiday (1953) she plays a princess who slips away for a day in Rome and rides through the city on a Vespa with Gregory Peck.'
+        }
+      },
+      {
+        name: 'Dinner for Two',
+        difficulty: 0.45,
+        blocks: [[0, 0, 3, 4, 0], [8, 0, 3, 4, 0], [1, 1, 2, 3, 1], [9, 1, 2, 3, 1]],
+        faces: ['rose', 'letter', 'champagne', 'ring', 'candle', 'chocolates'],
+        cardFace: 'candle',
+        cardColor: 'bulb',
+        trivia: {
+          q: 'In Disney’s Lady and the Tramp (1955), what do the two dogs share for dinner by candlelight?',
+          options: ['Spaghetti and meatballs', 'A steak', 'A pizza', 'A plate of sausages'],
+          answer: 0,
+          fact: 'They eat behind Tony’s restaurant while Tony and Joe serenade them with “Bella Notte.”'
+        }
+      },
+      {
+        name: 'Rainy Day',
+        difficulty: 0.4,
+        blocks: [[4, 0, 2, 1, 0], [2, 2, 4, 1, 0], [0, 4, 6, 2, 0], [5, 8, 1, 3, 0],
+          [4, 1, 2, 1, 1], [2, 3, 4, 1, 1], [1, 5, 5, 1, 1], [4, 2, 2, 1, 2], [3, 4, 3, 1, 2], [5, 3, 1, 1, 3]],
+        faces: ['rose', 'letter', 'champagne', 'ring', 'candle', 'chocolates', 'umbrella', 'perfume'],
+        cardFace: 'umbrella',
+        cardColor: 'dusk',
+        trivia: {
+          q: 'Who splashes through the puddles singing the title song in Singin’ in the Rain (1952)?',
+          options: ['Gene Kelly', 'Fred Astaire', 'Donald O’Connor', 'Frank Sinatra'],
+          answer: 0,
+          fact: 'Gene Kelly also directed the film, together with Stanley Donen.'
+        }
+      },
+      {
+        name: 'Paris in Spring',
+        difficulty: 0.65,
+        hard: true,
+        blocks: [[4, 0, 2, 2, 0], [2, 4, 4, 2, 0], [0, 8, 6, 1, 0], [0, 10, 2, 1, 0], [8, 10, 2, 1, 0],
+          [5, 1, 1, 2, 1], [3, 5, 3, 2, 1], [1, 9, 1, 1, 1], [9, 9, 1, 1, 1], [4, 6, 2, 1, 2]],
+        faces: ['rose', 'letter', 'champagne', 'ring', 'candle', 'chocolates', 'umbrella', 'perfume', 'tower', 'heels'],
+        cardFace: 'tower',
+        cardColor: 'violet',
+        trivia: {
+          q: 'Which famous line is never actually spoken in Casablanca (1942)?',
+          options: ['“Play it again, Sam”', '“Here’s looking at you, kid”', '“We’ll always have Paris”', '“Round up the usual suspects”'],
+          answer: 0,
+          fact: 'Ilsa says “Play it, Sam,” and Rick later says “Play it!” But nobody in the film says “Play it again, Sam.”'
+        }
+      },
+      {
+        name: 'Sweethearts',
+        difficulty: 0.55,
+        blocks: [[0, 0, 2, 1, 0], [8, 0, 2, 1, 0], [0, 2, 6, 3, 0], [2, 8, 4, 1, 0], [4, 10, 2, 1, 0],
+          [1, 1, 1, 1, 1], [9, 1, 1, 1, 1], [1, 3, 5, 2, 1], [3, 7, 3, 1, 1], [5, 9, 1, 1, 1], [2, 4, 4, 1, 2], [4, 6, 2, 1, 2]],
+        faces: ['rose', 'letter', 'champagne', 'ring', 'candle', 'chocolates', 'umbrella', 'perfume', 'tower', 'heels', 'lipstick', 'gift'],
+        cardFace: 'ring',
+        cardColor: 'mint',
+        trivia: {
+          q: 'Which song does Audrey Hepburn sing on her fire escape in Breakfast at Tiffany’s (1961)?',
+          options: ['Moon River', 'As Time Goes By', 'Over the Rainbow', 'Unchained Melody'],
+          answer: 0,
+          fact: '“Moon River,” by Henry Mancini and Johnny Mercer, won the Oscar for Best Original Song.'
+        }
+      },
+      {
+        name: 'Happily Ever After',
+        difficulty: 0.88,
+        hard: true,
+        blocks: [[4, 0, 2, 1, 0], [2, 2, 4, 2, 0], [0, 6, 6, 4, 0], [5, 0, 1, 1, 1], [3, 3, 3, 1, 1], [1, 7, 5, 3, 1],
+          [4, 3, 2, 1, 2], [2, 8, 4, 2, 2], [3, 9, 3, 1, 3]],
+        faces: ['rose', 'letter', 'champagne', 'ring', 'candle', 'chocolates', 'umbrella', 'perfume', 'tower', 'heels', 'lipstick', 'gift'],
+        cardFace: 'champagne',
+        cardColor: 'cherry',
+        trivia: {
+          q: 'In An Affair to Remember (1957), where do the two lovers promise to meet in six months?',
+          options: ['At the top of the Empire State Building', 'Under the clock at Grand Central', 'On the Brooklyn Bridge', 'At the Eiffel Tower'],
+          answer: 0,
+          fact: 'Cary Grant and Deborah Kerr star in it, and Sleepless in Seattle (1993) pays tribute to the very same meeting place.'
+        }
+      }
+    ]
+  };
+
   var CHESS = {
     id: 'chess',
     emblem: 'knight',
     kicker: 'Bonus',
-    short: 'Chess Night',
+    short: 'Chess',
     title: 'Chess Night',
     blurb: 'Learn the moves your grandkids play. Two matching pieces clear when one could capture the other.',
     mode: 'chess',
@@ -362,7 +477,7 @@
     ]
   };
 
-  var CHAPTERS = [DRIVE_IN, DINER, CHESS];
+  var CHAPTERS = [DRIVE_IN, DINER, ROMANCE, CHESS];
 
   // Tile count for each board, worked out from its blocks or its grid.
   CHAPTERS.forEach(function (ch) {

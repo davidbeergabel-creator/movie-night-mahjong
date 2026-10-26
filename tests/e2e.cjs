@@ -115,7 +115,7 @@ async function openBoard(page, key) {
   assert.match(await page.textContent('#play-sub'), /Snack Bar/);
   assert.strictEqual(await page.getAttribute('html', 'data-text'), 'large');
   await page.click('#nav-album');
-  assert.match(await page.textContent('#album-count'), /^2 of 18/);
+  assert.match(await page.textContent('#album-count'), /^2 of 24/);
   // Chapter 2 stays locked until Chapter 1 is finished.
   await page.goto(url('test=1&locks=1'));
   await page.click('#nav-chapters');
@@ -341,7 +341,7 @@ async function openBoard(page, key) {
   await page.click('[data-go="home"]');
   assert.strictEqual(await page.textContent('#stars-count'), '20', '2 stars for Level 1, then 3 for each level cleared without help');
   await page.click('#nav-album');
-  assert.match(await page.textContent('#album-count'), /^7 of 18/);
+  assert.match(await page.textContent('#album-count'), /^7 of 24/);
   assert.strictEqual(await page.$$eval('#album-grid [data-card]', (els) => els.length), 6);
   await page.click('#album-tab-diner');
   assert.strictEqual(await page.$$eval('#album-grid [data-card]', (els) => els.length), 1);
@@ -488,16 +488,43 @@ async function openBoard(page, key) {
     await page.click('#back');
   }
 
-  // The Late Show: finishing the last story chapter opens endless levels, numbered on from Level 12.
+  // Chapter 3: every board fits a phone, and the umbrella, the tower, the heart and the cake stay upright.
+  await page.goto(url('test=1&fresh=1&seed=13'));
+  await page.evaluate(() => localStorage.setItem('movie-night-mahjong.v1', JSON.stringify({ seenHowTo: true, seenHard: true })));
+  await page.goto(url('test=1&seed=13'));
+  const romanceSizes = [];
+  for (let i = 1; i <= 6; i++) {
+    await openBoard(page, `romance-${i}`);
+    if (i === 1) {
+      await page.waitForSelector('#sheet-title:has-text("New tiles tonight")');
+      await shot(page, '17a-romance-new-tiles');
+    }
+    await closeSheets(page);
+    assert.strictEqual(await page.textContent('#stat-level'), String(12 + i));
+    romanceSizes.push(await page.evaluate(() => parseFloat(document.getElementById('board').style.getPropertyValue('--tw'))));
+    if (i >= 3) assert.strictEqual(await page.evaluate(() => window.__mnm.game.transposed), false, `romance board ${i} stays upright`);
+    await checkNoScroll(page, `romance board ${i}`);
+    await shot(page, `17b-romance-${i}`);
+    await page.click('#back');
+  }
+  console.log('Tile widths on a 390px phone, levels 13-18:', romanceSizes.join(', '));
+  assert.ok(Math.min(...romanceSizes) >= 44, 'Chapter 3 tiles stay at least 44px wide on a phone');
+  await page.click('#nav-chapters');
+  await page.click('#tab-romance');
+  await checkNoScroll(page, 'chapters with four tabs');
+  await shot(page, '17c-chapters-romance');
+
+  // The Late Show: finishing the last story chapter opens endless levels, numbered on from Level 18.
   await page.goto(url('test=1&fresh=1&seed=9'));
   await page.evaluate(() => {
     const cleared = {};
     for (let i = 1; i <= 6; i++) cleared['drive-in-' + i] = true;
-    for (let i = 1; i <= 5; i++) cleared['diner-' + i] = true;
-    localStorage.setItem('movie-night-mahjong.v1', JSON.stringify({ seenHowTo: true, seenHard: true, cleared, seenIntro: { 'diner-6': true } }));
+    for (let i = 1; i <= 6; i++) cleared['diner-' + i] = true;
+    for (let i = 1; i <= 5; i++) cleared['romance-' + i] = true;
+    localStorage.setItem('movie-night-mahjong.v1', JSON.stringify({ seenHowTo: true, seenHard: true, cleared, seenIntro: { 'romance-6': true } }));
   });
   await page.goto(url('test=1&seed=9'));
-  assert.match(await page.textContent('#play-btn'), /Level 12/);
+  assert.match(await page.textContent('#play-btn'), /Level 18/);
   await page.click('#play-btn');
   await closeSheets(page);
   await clearBoard(page);
@@ -507,7 +534,7 @@ async function openBoard(page, key) {
   await page.waitForSelector('#sheet-title:has-text("Welcome to the Late Show")');
   await shot(page, '15a-late-show-intro');
   await closeSheets(page);
-  assert.strictEqual(await page.textContent('#stat-level'), '13');
+  assert.strictEqual(await page.textContent('#stat-level'), '19');
   assert.match(await page.textContent('#board-name'), /After Hours/);
   const lateTile = await page.evaluate(() => parseFloat(document.getElementById('board').style.getPropertyValue('--tw')));
   assert.ok(lateTile >= 44, `Late Show tiles are ${lateTile}px on a phone`);
@@ -519,9 +546,9 @@ async function openBoard(page, key) {
   await shot(page, '15c-late-show-cleared');
   await page.click('#sheet [data-go="board:late-2"]');
   await page.waitForSelector('#overlay', { state: 'hidden' });
-  assert.strictEqual(await page.textContent('#stat-level'), '14');
+  assert.strictEqual(await page.textContent('#stat-level'), '20');
   await page.click('#back');
-  assert.match(await page.textContent('#play-btn'), /Level 14/);
+  assert.match(await page.textContent('#play-btn'), /Level 20/);
   assert.match(await page.textContent('#play-sub'), /^Resume · The Late Show · Midnight Matinee/);
   assert.strictEqual(await page.getAttribute('#emblem', 'data-face'), 'moon');
   await shot(page, '15d-home-late-show');

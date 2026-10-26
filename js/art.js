@@ -206,6 +206,110 @@
       '<ellipse cx="29" cy="76" rx="13" ry="9.5" transform="rotate(-20 29 76)" fill="#d6336c" ' + S + '/>' +
       '<ellipse cx="69" cy="66" rx="13" ry="9.5" transform="rotate(-20 69 66)" fill="#d6336c" ' + S + '/>',
 
+
+    // Chapter 3: Romance at the Movies
+    rose:
+      '<path d="M50 54 V92" stroke="' + INK + '" stroke-width="8" stroke-linecap="round"/>' +
+      '<path d="M50 54 V92" stroke="#3f9b3a" stroke-width="3.5" stroke-linecap="round"/>' +
+      '<path d="M50 78 C42 68 28 68 22 76 C32 84 44 84 50 78 Z" fill="#6cc04a" ' + S + '/>' +
+      '<path d="M50 70 C58 60 72 60 78 68 C68 76 56 76 50 70 Z" fill="#6cc04a" ' + S + '/>' +
+      '<path d="M24 32 C24 14 40 8 50 16 C60 8 76 14 76 32 C76 48 64 58 50 58 C36 58 24 48 24 32 Z" fill="#d82c4a" ' + S + '/>' +
+      '<path d="M40 31 C40 22 51 19 56 26 C60 33 53 39 46 36" fill="none" stroke="' + INK + '" stroke-width="3" stroke-linecap="round"/>' +
+      '<path d="M32 38 C37 48 54 50 63 41" fill="none" stroke="' + INK + '" stroke-width="3" stroke-linecap="round"/>',
+
+    chocolates:
+      '<path d="M50 90 C22 70 10 54 13 36 C16 18 38 13 50 29 C62 13 84 18 87 36 C90 54 78 70 50 90 Z" fill="#7a3e22" ' + S + '/>' +
+      '<path d="M50 79 C31 64 23 53 25 41 C27 30 40 27 50 38 C60 27 73 30 75 41 C77 53 69 64 50 79 Z" fill="#a0582f" stroke="#4e2614" stroke-width="2.5"/>' +
+      '<g fill="#4e2614"><circle cx="38" cy="45" r="5"/><circle cx="62" cy="45" r="5"/><circle cx="50" cy="57" r="5"/></g>' +
+      '<g fill="#f48fb1" ' + S + '><path d="M28 22 C18 10 8 20 20 28 Z"/><path d="M28 22 C40 10 46 22 34 28 Z"/></g>' +
+      '<circle cx="27" cy="25" r="4.5" fill="#ec407a" stroke="' + INK + '" stroke-width="2.5"/>',
+
+    letter:
+      '<g transform="rotate(-8 50 50)">' +
+      '<rect x="10" y="26" width="80" height="52" rx="5" fill="#fff6e2" ' + S + '/>' +
+      '<path d="M12 76 L40 52 M88 76 L60 52" stroke="' + INK + '" stroke-width="2.5" stroke-linecap="round"/>' +
+      '<path d="M12 29 L50 58 L88 29" fill="#f3e2bd" ' + S + '/>' +
+      '<path d="M50 71 C39 63 37 57 40 53 C43 49 48 50 50 54 C52 50 57 49 60 53 C63 57 61 63 50 71 Z" fill="#e8384f" stroke="' + INK + '" stroke-width="2.5" stroke-linejoin="round"/>' +
+      '</g>',
+
+    ring:
+      '<circle cx="50" cy="63" r="24" fill="none" stroke="' + INK + '" stroke-width="15"/>' +
+      '<circle cx="50" cy="63" r="24" fill="none" stroke="#ffc94a" stroke-width="8"/>' +
+      '<path d="M33 72 A19 19 0 0 0 43 81" stroke="#fff0b3" stroke-width="3" fill="none" stroke-linecap="round"/>' +
+      '<path d="M41 37 H59 L54 44 H46 Z" fill="#ffc94a" stroke="' + INK + '" stroke-width="2.5" stroke-linejoin="round"/>' +
+      '<path d="M30 22 L39 11 H61 L70 22 L50 40 Z" fill="#9fe3f5" ' + S + '/>' +
+      '<path d="M30 22 H70 M39 11 L45 22 L50 40 L55 22 L61 11" fill="none" stroke="' + INK + '" stroke-width="2"/>' +
+      '<path d="M80 10 V22 M74 16 H86" stroke="#ffc94a" stroke-width="3.5" stroke-linecap="round"/>',
+
+    champagne:
+      '<path d="M44 12 L50 4 L56 12 M40 8 L44 12 M60 8 L56 12" stroke="#ffc94a" stroke-width="3" stroke-linecap="round" fill="none"/>' +
+      '<g transform="translate(37 52) rotate(-14)">' +
+      '<path d="M-9 -38 H9 L7 0 Q0 8 -7 0 Z" fill="#fff6e2"/><path d="M-8.4 -27 H8.4 L7 0 Q0 8 -7 0 Z" fill="#ffd54f"/>' +
+      '<path d="M-9 -38 H9 L7 0 Q0 8 -7 0 Z" fill="none" ' + S + '/>' +
+      '<path d="M0 6 V32 M-11 33 H11" stroke="' + INK + '" stroke-width="4" stroke-linecap="round"/>' +
+      '<circle cx="-2" cy="-12" r="1.8" fill="#fff6e2"/><circle cx="3" cy="-19" r="1.5" fill="#fff6e2"/></g>' +
+      '<g transform="translate(63 52) rotate(14)">' +
+      '<path d="M-9 -38 H9 L7 0 Q0 8 -7 0 Z" fill="#fff6e2"/><path d="M-8.4 -27 H8.4 L7 0 Q0 8 -7 0 Z" fill="#ffd54f"/>' +
+      '<path d="M-9 -38 H9 L7 0 Q0 8 -7 0 Z" fill="none" ' + S + '/>' +
+      '<path d="M0 6 V32 M-11 33 H11" stroke="' + INK + '" stroke-width="4" stroke-linecap="round"/>' +
+      '<circle cx="2" cy="-12" r="1.8" fill="#fff6e2"/><circle cx="-3" cy="-19" r="1.5" fill="#fff6e2"/></g>',
+
+    umbrella:
+      '<path d="M50 50 V80 Q50 90 41 90 Q33 90 33 82" fill="none" stroke="' + INK + '" stroke-width="8" stroke-linecap="round"/>' +
+      '<path d="M50 50 V80 Q50 90 41 90 Q33 90 33 82" fill="none" stroke="#8b4a2b" stroke-width="3.5" stroke-linecap="round"/>' +
+      '<path d="M8 50 C10 24 28 12 50 12 C72 12 90 24 92 50 C86 44 77 44 71 50 C65 44 56 44 50 50 C44 44 35 44 29 50 C23 44 14 44 8 50 Z" fill="#3d7bda" ' + S + '/>' +
+      '<path d="M29 50 C31 30 40 17 50 12 C60 17 69 30 71 50 C65 44 56 44 50 50 C44 44 35 44 29 50 Z" fill="#7fb0f0" stroke="' + INK + '" stroke-width="2.5" stroke-linejoin="round"/>' +
+      '<path d="M50 12 V5" stroke="' + INK + '" stroke-width="4" stroke-linecap="round"/>' +
+      '<g fill="#bfe8f2" stroke="' + INK + '" stroke-width="2"><path d="M16 60 Q22 68 16 72 Q10 68 16 60 Z"/><path d="M80 62 Q86 70 80 74 Q74 70 80 62 Z"/>' +
+      '<path d="M70 80 Q75 87 70 90 Q65 87 70 80 Z"/></g>',
+
+    candle:
+      '<path d="M26 89 H74 Q74 80 62 79 H38 Q26 80 26 89 Z" fill="#e0a33a" ' + S + '/>' +
+      '<rect x="44" y="68" width="12" height="11" fill="#e0a33a" ' + S + '/>' +
+      '<path d="M31 62 H69 L62 70 H38 Z" fill="#e0a33a" ' + S + '/>' +
+      '<rect x="38" y="31" width="24" height="32" rx="3" fill="#fff6e2" ' + S + '/>' +
+      '<path d="M38 38 Q41 45 44 38" fill="#fff6e2" stroke="' + INK + '" stroke-width="2.5"/>' +
+      '<path d="M50 31 V24" stroke="' + INK + '" stroke-width="3" stroke-linecap="round"/>' +
+      '<path d="M50 5 C59 15 61 22 50 27 C39 22 41 15 50 5 Z" fill="#f2892e" ' + S + '/>' +
+      '<path d="M50 14 C54 19 54 22 50 24 C46 22 46 19 50 14 Z" fill="#ffe27a"/>',
+
+    perfume:
+      '<path d="M57 18 H72 Q80 18 80 26" fill="none" stroke="' + INK + '" stroke-width="3"/>' +
+      '<ellipse cx="81" cy="33" rx="7" ry="9" fill="#f48fb1" ' + S + '/>' +
+      '<rect x="45" y="22" width="10" height="10" fill="#ffc94a" ' + S + '/>' +
+      '<rect x="41" y="10" width="18" height="13" rx="3" fill="#ffc94a" ' + S + '/>' +
+      '<path d="M22 46 Q22 32 36 32 H64 Q78 32 78 46 V78 Q78 90 66 90 H34 Q22 90 22 78 Z" fill="#8e5bd8" ' + S + '/>' +
+      '<path d="M31 44 V78" stroke="#c9a8f5" stroke-width="4" stroke-linecap="round"/>' +
+      '<rect x="40" y="54" width="26" height="17" rx="3" fill="#fff6e2" stroke="' + INK + '" stroke-width="2.5"/>' +
+      '<path d="M53 59 C50 56 46 58 48 61 L53 66 L58 61 C60 58 56 56 53 59 Z" fill="#e8384f"/>',
+
+    heels:
+      '<path d="M78 56 L86 56 L84 90 L80 90 Z" fill="' + INK + '"/>' +
+      '<path d="M8 74 C8 64 20 61 32 63 C44 65 56 64 64 52 L73 35 C77 28 88 28 90 37 L88 54 C84 64 76 70 64 74 L22 81 C13 82 8 80 8 74 Z" fill="#ec5ba8" ' + S + '/>' +
+      '<path d="M36 64 C48 65 58 60 66 49" fill="none" stroke="' + INK + '" stroke-width="3" stroke-linecap="round"/>' +
+      '<path d="M15 73 C25 70 40 70 52 70" stroke="#ffc1e3" stroke-width="3.5" fill="none" stroke-linecap="round"/>',
+
+    tower:
+      '<path d="M50 4 L53 24 L57 42 L65 64 L82 92 H63 Q60 76 50 76 Q40 76 37 92 H18 L35 64 L43 42 L47 24 Z" fill="#5b6b8c" ' + S + '/>' +
+      '<path d="M45 30 L55 38 M55 30 L45 38 M41 48 L59 58 M59 48 L41 58 M34 70 L44 82 M66 70 L56 82" stroke="#a9b6d1" stroke-width="2" stroke-linecap="round"/>' +
+      '<rect x="37" y="40" width="26" height="6" rx="1.5" fill="#5b6b8c" ' + S + '/>' +
+      '<rect x="27" y="61" width="46" height="7" rx="1.5" fill="#5b6b8c" ' + S + '/>',
+
+    lipstick:
+      '<path d="M40 41 V26 L60 13 V41 Z" fill="#c2185b" ' + S + '/>' +
+      '<path d="M45 37 V27" stroke="#f48fb1" stroke-width="3" stroke-linecap="round"/>' +
+      '<rect x="37" y="40" width="26" height="17" fill="#e0a33a" ' + S + '/>' +
+      '<rect x="33" y="56" width="34" height="34" rx="3" fill="#ffc94a" ' + S + '/>' +
+      '<path d="M33 66 H67" stroke="' + INK + '" stroke-width="3"/>' +
+      '<path d="M40 72 V84" stroke="#fff0b3" stroke-width="3" stroke-linecap="round"/>',
+
+    gift:
+      '<rect x="20" y="50" width="60" height="40" fill="#5ed6c6" ' + S + '/>' +
+      '<rect x="14" y="36" width="72" height="16" rx="3" fill="#5ed6c6" ' + S + '/>' +
+      '<rect x="44" y="36" width="12" height="54" fill="#e8384f" stroke="' + INK + '" stroke-width="2.5"/>' +
+      '<path d="M50 36 C38 18 22 22 29 33 C33 39 44 38 50 36 Z" fill="#e8384f" ' + S + '/>' +
+      '<path d="M50 36 C62 18 78 22 71 33 C67 39 56 38 50 36 Z" fill="#e8384f" ' + S + '/>' +
+      '<circle cx="50" cy="36" r="5" fill="#b0233a" stroke="' + INK + '" stroke-width="2.5"/>',
     // Chess Night: each piece has its own color as well as its own shape.
     pawn:
       '<rect x="22" y="78" width="56" height="12" rx="4" fill="#3d7bda" ' + S + '/>' +

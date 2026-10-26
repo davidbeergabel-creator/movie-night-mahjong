@@ -360,8 +360,9 @@ button { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent
   align-content: start;
   justify-items: start;
   gap: 1px;
+  min-width: 0;
   min-height: 4.2rem;
-  padding: 0.5rem 0.7rem;
+  padding: 0.5rem min(0.7rem, calc(var(--gw) * 1.8));
   border: 0;
   border-radius: 14px;
   background: var(--sky-2);
@@ -370,10 +371,11 @@ button { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent
   cursor: pointer;
 }
 .seg-tab.on { background: var(--bulb); color: var(--ink); box-shadow: none; }
-.tab-kicker { color: var(--muted); font-size: 0.75rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
+/* Four chapters share one row on a phone, so the tab text scales with the screen and never breaks mid-word. */
+.tab-kicker { color: var(--muted); font-size: min(0.75rem, calc(var(--gw) * 2.4)); font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap; }
 .seg-tab.on .tab-kicker { color: var(--ink-soft); }
-.tab-name { font-family: var(--font-display); font-size: 0.95rem; line-height: 1.15; overflow-wrap: anywhere; }
-.tab-status { display: inline-flex; align-items: center; gap: 0.25rem; font-size: 0.8rem; font-weight: 700; }
+.tab-name { font-family: var(--font-display); font-size: min(0.95rem, calc(var(--gw) * 3)); line-height: 1.15; white-space: nowrap; }
+.tab-status { display: inline-flex; align-items: center; gap: 0.25rem; font-size: min(0.8rem, calc(var(--gw) * 3.2)); font-weight: 700; white-space: nowrap; }
 .tab-status .icon { width: 0.95rem; height: 0.95rem; }
 
 .chapter-head { display: grid; gap: 2px; }
@@ -465,6 +467,8 @@ button { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent
 .board-card.cleared .board-status .icon { color: var(--bulb-shadow); }
 .board-card.next { box-shadow: 0 4px 0 var(--tile-side), 0 0 0 3px var(--cherry); }
 .card-top { display: flex; align-items: center; gap: 6px; min-width: 0; }
+/* On a level card the Hard tag sits on the top edge, so it never crowds the number or the picture. */
+.board-card .hard-tag { position: absolute; top: -0.6rem; right: 0.7rem; box-shadow: 0 0 0 2px var(--sky); }
 .board-card.hard:not(.cleared) .board-num { background: var(--violet-deep); }
 .board-card.hard.next { box-shadow: 0 4px 0 var(--tile-side), 0 0 0 3px var(--violet); }
 .hard-tag {

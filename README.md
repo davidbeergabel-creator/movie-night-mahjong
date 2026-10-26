@@ -17,7 +17,7 @@ The structure follows Vita Mahjong, and no screen scrolls:
 - **The board:** a round back button, **Level / Tiles / Matches** counters (Matches is how many pairs you can take right now), the board's name, and round **Shuffle / Hint / Undo** buttons. Shuffle and Hint show how many are left; Undo shows ∞.
 - **Portrait only.** Like an app locked to portrait, the game stays upright for a phone held sideways. An installed copy (Add to Home Screen) asks the phone to lock to portrait too.
 
-The movie chapters are numbered as one run of levels: Chapter 1 is Levels 1–6 and Chapter 2 is Levels 7–12. After that, the Late Show carries on from Level 13 for ever, and the big Home button always plays the next level.
+The movie chapters are numbered as one run of levels: Chapter 1 is Levels 1–6, Chapter 2 is Levels 7–12 and Chapter 3 is Levels 13–18. After that, the Late Show carries on from Level 19 for ever, and the big Home button always plays the next level.
 
 ## What's in it
 
@@ -25,7 +25,8 @@ The movie chapters are numbered as one run of levels: Chapter 1 is Levels 1–6 
 |---|---|---|---|
 | 1 · Saturday at the Drive-In | Opening Night, Ticket Booth, Snack Bar, Back Row, Double Feature, Grand Finale | 16–62 | From the start |
 | 2 · Rock ’n’ Roll Diner | Booth for Two, Counter Stools, Jukebox Corner, Malt Shop, Sock Hop, Last Dance | 26–64 | After Chapter 1 |
-| The Late Show | Endless: a new board every level, from Level 13 on | 30–72 | After the last story chapter |
+| 3 · Romance at the Movies | First Date, Dinner for Two, Rainy Day, Paris in Spring, Sweethearts, Happily Ever After | 30–66 | After Chapter 2 |
+| The Late Show | Endless: a new board every level, from Level 19 on | 30–72 | After the last story chapter |
 | Bonus · Chess Night | Castle Walls, Bishop’s Path, Knight Moves, Royal Court, The Queen Arrives, Checkmate | 16–36 pieces | After Chapter 1 |
 
 - **Chapters.** Each board opens the next. A board's new tiles are introduced before you play it. Clearing a board opens its card ("Do you remember?" for the movie chapters, "Did you know?" for chess). The card goes into the album whether you answer right or wrong. The answers come in a new order each time; questions about numbers keep them smallest to largest.
@@ -47,6 +48,7 @@ The first version never let you lose: a dead end reshuffled itself, and help was
   |---|---|
   | Chapter 1 | 3%, 15%, 35%, **55%**, 35%, **80%** |
   | Chapter 2 | 25%, 45%, **65%**, 45%, 60%, **85%** |
+  | Chapter 3 | 30%, 45%, 40%, **65%**, 55%, **88%** |
   | Chess Night | 10%, 30%, 40%, 50%, 50%, **85%** (chess deals rarely go below 50%: random captures strand pieces easily) |
   | Daily board | Monday 30%, then up through the week to Saturday 85%; Friday and Saturday are Hard |
   | The Late Show | Runs of ten: 35%, 45%, 55%, 40%, **70%**, 45%, 55%, 60%, 50%, **85%**, each run 1% harder (up to +6%) |
@@ -58,7 +60,7 @@ The first version never let you lose: a dead end reshuffled itself, and help was
 
 The design follows the research on women over 55, the core mahjong solitaire audience:
 
-- **Readable tiles.** There are 30 original drawings (24 tiles and 6 chess pieces), each with its own color *and* shape, so no two are told apart by color alone. The board picks whichever way round (wide or tall) gives the biggest tiles on the screen. On a 390px phone, tiles are 60–85px wide, and a phone held sideways gets the same portrait-sized tiles.
+- **Readable tiles.** There are 42 original drawings (36 tiles and 6 chess pieces), each with its own color *and* shape, so no two are told apart by color alone. The board picks whichever way round (wide or tall) gives the biggest tiles on the screen; picture boards like Chapter 3's umbrella, tower, heart and wedding cake are drawn to stay upright on a phone. On a 390px phone, tiles are 56–85px wide, and a phone held sideways gets the same portrait-sized tiles.
 - **Nothing to remember.** Tiles you can't pick yet are darkened, which can be turned off. Tapping one makes it shake; only the very first time does a short note say why. Any message goes away as soon as you tap a tile. An optional setting points out the matching tile when you pick one. In Chess Night, a piece's moves are always shown when you pick it.
 - **Challenging, but never a trap.** There's no timer and Undo is unlimited. Every board is dealt so it can be cleared, a dead end tells you how far back to go, and Level 1 is gentle. A shuffle always leaves a board that can be cleared; if the tiles can't be cleared where they sit (one tile stuck on top of its twin), the last tiles move to fresh spots.
 - **Comfort settings.** Three text sizes and a sound switch. Animations stop when the device asks for reduced motion.
