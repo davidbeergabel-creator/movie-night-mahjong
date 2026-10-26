@@ -150,7 +150,7 @@ async function openBoard(page, key) {
   await shot(page, '03-board-1');
   const firstDeal = await deal(page);
 
-  // A blocked tile just shakes: no message covers the board.
+  // A blocked tile shakes. The first time, a note says why; after that, nothing covers the board.
   const blocked = await page.evaluate(() => {
     const g = window.__mnm.game;
     const free = new Set(window.__mnm.engine.freeTileIds(g.tiles));
@@ -160,7 +160,9 @@ async function openBoard(page, key) {
   assert.notStrictEqual(blocked, null);
   await page.click(`#board .tile[data-id="${blocked}"]`, { force: true });
   assert.ok(await page.$eval(`#board .tile[data-id="${blocked}"]`, (el) => el.classList.contains('nudge')));
-  assert.ok(!(await page.isVisible('#toast.show')), 'no message for a blocked tile');
+  assert.match(await page.textContent('#toast.show'), /blocked/, 'the first blocked tap explains itself');
+  await page.click(`#board .tile[data-id="${blocked}"]`, { force: true });
+  assert.ok(!(await page.isVisible('#toast.show')), 'the next blocked tap only shakes, and clears the note');
 
   // Undo puts a pair back.
   const before = await tilesLeft(page);
@@ -464,7 +466,9 @@ async function openBoard(page, key) {
   await shot(page, '12e-chess-selected');
   await page.click(`#board .tile[data-id="${chessCheck.far}"]`);
   assert.ok(await page.$eval(`#board .tile[data-id="${chessCheck.far}"]`, (el) => el.classList.contains('nudge')), 'a twin out of reach shakes');
-  assert.ok(!(await page.isVisible('#toast.show')), 'no message for a twin out of reach');
+  assert.match(await page.textContent('#toast.show'), /out of reach/, 'the first time, a note says why');
+  await page.click(`#board .tile[data-id="${chessCheck.far}"]`);
+  assert.ok(!(await page.isVisible('#toast.show')), 'after that, it only shakes');
   const piecesBefore = await tilesLeft(page);
   await page.click(`#board .tile[data-id="${chessCheck.near}"]`);
   await waitIdle(page);

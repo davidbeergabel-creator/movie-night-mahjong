@@ -105,6 +105,8 @@
       seenHowTo: false,
       seenChessHowTo: false,
       seenHard: false,
+      seenBlockedTip: false,
+      seenReachTip: false,
       games: {},
       daily: {},
       lastPlayed: null,
@@ -136,6 +138,8 @@
     s.seenHowTo = !!data.seenHowTo;
     s.seenChessHowTo = !!data.seenChessHowTo;
     s.seenHard = !!data.seenHard;
+    s.seenBlockedTip = !!data.seenBlockedTip;
+    s.seenReachTip = !!data.seenReachTip;
     s.stars = plainObject(data.stars);
     s.games = plainObject(data.games);
     s.daily = plainObject(data.daily);
@@ -1524,9 +1528,14 @@
         matchPair(sel, id);
         return;
       }
-      // Out of reach: the piece shakes. Its move dots already show where it can go.
+      // Out of reach: the piece shakes. Its move dots show where it can go; the first time, a note says why.
       nudge(tileButton(id));
       sound('blocked');
+      if (!save.seenReachTip) {
+        save.seenReachTip = true;
+        persist();
+        toast('That ' + C.FACES[t.face].toLowerCase() + ' is out of reach. ' + C.PIECE_RULES[t.face]);
+      }
       return;
     } else {
       game.selected = id;
@@ -1543,10 +1552,15 @@
     hideToast();
     if (game.mode === 'chess') { onChessTap(id); return; }
     var btn = tileButton(id);
-    // A blocked tile just shakes, with no message in the way.
+    // A blocked tile shakes. Only the very first time does a note explain why.
     if (!E.isFree(game.tiles, id)) {
       nudge(btn);
       sound('blocked');
+      if (!save.seenBlockedTip) {
+        save.seenBlockedTip = true;
+        persist();
+        toast('That tile is blocked. Pick one with nothing on top and an open left or right side.');
+      }
       return;
     }
     if (game.selected === id) {
@@ -1844,6 +1858,8 @@
         save = defaultSave();
         save.settings = settings;
         save.seenHowTo = true;
+        save.seenBlockedTip = true;
+        save.seenReachTip = true;
         game = null;
         persist();
         sheetOnClose = null;
