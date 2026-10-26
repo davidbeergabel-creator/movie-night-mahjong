@@ -488,6 +488,70 @@ async function openBoard(page, key) {
     await page.click('#back');
   }
 
+  // The Late Show: finishing the last story chapter opens endless levels, numbered on from Level 12.
+  await page.goto(url('test=1&fresh=1&seed=9'));
+  await page.evaluate(() => {
+    const cleared = {};
+    for (let i = 1; i <= 6; i++) cleared['drive-in-' + i] = true;
+    for (let i = 1; i <= 5; i++) cleared['diner-' + i] = true;
+    localStorage.setItem('movie-night-mahjong.v1', JSON.stringify({ seenHowTo: true, seenHard: true, cleared, seenIntro: { 'diner-6': true } }));
+  });
+  await page.goto(url('test=1&seed=9'));
+  assert.match(await page.textContent('#play-btn'), /Level 12/);
+  await page.click('#play-btn');
+  await closeSheets(page);
+  await clearBoard(page);
+  await answerTrivia(page, true);
+  assert.match(await page.textContent('#reveal'), /The Late Show is now open/);
+  await page.click('#reveal [data-go="board:late-1"]');
+  await page.waitForSelector('#sheet-title:has-text("Welcome to the Late Show")');
+  await shot(page, '15a-late-show-intro');
+  await closeSheets(page);
+  assert.strictEqual(await page.textContent('#stat-level'), '13');
+  assert.match(await page.textContent('#board-name'), /After Hours/);
+  const lateTile = await page.evaluate(() => parseFloat(document.getElementById('board').style.getPropertyValue('--tw')));
+  assert.ok(lateTile >= 44, `Late Show tiles are ${lateTile}px on a phone`);
+  await checkNoScroll(page, 'late show board');
+  await shot(page, '15b-late-show-board');
+  await clearBoard(page);
+  await page.waitForSelector('#sheet-title:has-text("Level cleared!")');
+  assert.ok(await page.isVisible('#sheet .stars-row'));
+  await shot(page, '15c-late-show-cleared');
+  await page.click('#sheet [data-go="board:late-2"]');
+  await page.waitForSelector('#overlay', { state: 'hidden' });
+  assert.strictEqual(await page.textContent('#stat-level'), '14');
+  await page.click('#back');
+  assert.match(await page.textContent('#play-btn'), /Level 14/);
+  assert.match(await page.textContent('#play-sub'), /^Resume · The Late Show · Midnight Matinee/);
+  assert.strictEqual(await page.getAttribute('#emblem', 'data-face'), 'moon');
+  await shot(page, '15d-home-late-show');
+
+  // Playtest mode: the log stays on the phone across visits, and Settings copies readable notes.
+  await page.goto(url('test=1&fresh=1&seed=11&playtest=1'));
+  await page.click('#play-btn');
+  await closeSheets(page);
+  await playPair(page);
+  await page.click('#back');
+  await page.goto(url('test=1&seed=11'));
+  await page.click('#open-settings');
+  assert.ok(await page.isVisible('.playtest-box'), 'playtest mode stays on for this phone');
+  await shot(page, '16a-playtest-settings');
+  await page.click('#pt-copy');
+  await page.waitForSelector('#toast:has-text("Playtest notes copied")');
+  const notes = await page.evaluate(() => navigator.clipboard.readText());
+  assert.match(notes, /^Movie Night Mahjong playtest notes/);
+  assert.match(notes, /2 visits/);
+  assert.match(notes, /Level 1 · Opening Night: left unfinished with 14 tiles on the board/);
+  assert.match(notes, /--- Raw log, for analysis ---\n\[\{"event":"session"/);
+  await page.click('#pt-clear');
+  assert.strictEqual((await page.textContent('#pt-clear')).trim(), 'Tap again to clear', 'clearing takes two taps');
+  await page.click('#pt-clear');
+  assert.strictEqual(await page.evaluate(() => JSON.parse(localStorage.getItem('movie-night-mahjong.playtest')).length), 0);
+  await page.click('#pt-off');
+  await page.click('#open-settings');
+  assert.ok(!(await page.isVisible('.playtest-box')), 'playtest mode can be turned off');
+  await page.click('#sheet [data-close]');
+
   // A small phone, a tablet, a desktop and a phone held sideways.
   for (const [w, h, name] of [[375, 667, 'small-phone'], [1280, 800, 'desktop'], [1024, 768, 'tablet']]) {
     await page.setViewportSize({ width: w, height: h });

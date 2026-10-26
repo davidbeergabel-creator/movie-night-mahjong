@@ -1,6 +1,6 @@
 # Movie Night Mahjong
 
-A mahjong solitaire for players who want big, clear tiles, no time pressure and a real puzzle. It has a movie-night theme: two story chapters, a bonus chess chapter, and a new board every day. Clearing a chapter board earns a movie card for your album, and up to three stars.
+A mahjong solitaire for players who want big, clear tiles, no time pressure and a real puzzle. It has a movie-night theme: story chapters, then the Late Show, an endless run of new levels, plus a bonus chess chapter and a new board every day. Clearing a chapter board earns a movie card for your album, and up to three stars.
 
 ## Play
 
@@ -17,7 +17,7 @@ The structure follows Vita Mahjong, and no screen scrolls:
 - **The board:** a round back button, **Level / Tiles / Matches** counters (Matches is how many pairs you can take right now), the board's name, and round **Shuffle / Hint / Undo** buttons. Shuffle and Hint show how many are left; Undo shows ∞.
 - **Portrait only.** Like an app locked to portrait, the game stays upright for a phone held sideways. An installed copy (Add to Home Screen) asks the phone to lock to portrait too.
 
-The movie chapters are numbered as one run of levels: Chapter 1 is Levels 1–6 and Chapter 2 is Levels 7–12.
+The movie chapters are numbered as one run of levels: Chapter 1 is Levels 1–6 and Chapter 2 is Levels 7–12. After that, the Late Show carries on from Level 13 for ever, and the big Home button always plays the next level.
 
 ## What's in it
 
@@ -25,9 +25,11 @@ The movie chapters are numbered as one run of levels: Chapter 1 is Levels 1–6 
 |---|---|---|---|
 | 1 · Saturday at the Drive-In | Opening Night, Ticket Booth, Snack Bar, Back Row, Double Feature, Grand Finale | 16–62 | From the start |
 | 2 · Rock ’n’ Roll Diner | Booth for Two, Counter Stools, Jukebox Corner, Malt Shop, Sock Hop, Last Dance | 26–64 | After Chapter 1 |
+| The Late Show | Endless: a new board every level, from Level 13 on | 30–72 | After the last story chapter |
 | Bonus · Chess Night | Castle Walls, Bishop’s Path, Knight Moves, Royal Court, The Queen Arrives, Checkmate | 16–36 pieces | After Chapter 1 |
 
 - **Chapters.** Each board opens the next. A board's new tiles are introduced before you play it. Clearing a board opens its card ("Do you remember?" for the movie chapters, "Did you know?" for chess). The card goes into the album whether you answer right or wrong. The answers come in a new order each time; questions about numbers keep them smallest to largest.
+- **The Late Show.** Endless levels after the story. Each one is built from its level number, so Level 40 is the same board for everyone: a bottom layer in one of eight shapes (full, notched, diamond, hollow, split, hourglass, cross, bars), mirrored, with smaller layers stacked on top, and tiles from every story chapter. Levels come in runs of ten that get bigger and harder, with a Hard level halfway and a harder one at the end, and each run is a touch harder than the last. There are no cards here; a level shows its stars and moves straight on to the next. When a new story chapter is added, the Home button plays it first, then picks the Late Show up where you left it.
 - **Chess Night.** Every tile is a chess piece, and two matching pieces clear when one could capture the other with its chess move. Tap a piece to see where it can go: dots mark the squares it can reach, and a ring marks a twin it can capture. Each board introduces one piece with a small diagram, so you don't need to know chess.
 - **Daily board.** Everyone gets the same board on the same day; the date picks the layout, the tiles and the deal. Clearing it stamps a calendar. There's no streak to lose. The daily card appears once you've cleared your first board.
 - **Send a board to a friend.** After clearing a board, you can share a link. It carries the board, its seed, its orientation and how many hints and shuffles you used, so your friend gets the very same tiles. Afterwards they see how their stars compare and can send it back. Phones open their own share sheet; elsewhere the message is copied.
@@ -47,6 +49,7 @@ The first version never let you lose: a dead end reshuffled itself, and help was
   | Chapter 2 | 25%, 45%, **65%**, 45%, 60%, **85%** |
   | Chess Night | 10%, 30%, 40%, 50%, 50%, **85%** (chess deals rarely go below 50%: random captures strand pieces easily) |
   | Daily board | Monday 30%, then up through the week to Saturday 85%; Friday and Saturday are Hard |
+  | The Late Show | Runs of ten: 35%, 45%, 55%, 40%, **70%**, 45%, 55%, 60%, 50%, **85%**, each run 1% harder (up to +6%) |
 
   A player who looks before matching does far better than these numbers.
 - **Hard levels** are marked in purple on the cards, the home button and the board. The first one explains what's different and gives three tips.
@@ -62,13 +65,19 @@ The design follows the research on women over 55, the core mahjong solitaire aud
 - **Something to complete.** Album cards, stars, chapter tickets and calendar stamps.
 - **A first visit stays simple.** The daily board and the other chapters appear after the first board is cleared.
 
+## Playtesting
+
+[`docs/playtest-kit.md`](docs/playtest-kit.md) is a kit for watching five players from the target audience play: who to invite, a 45-minute session plan, what to say (in English), what to watch for, interview questions, an observation sheet and what to change afterwards. The facilitator notes are in Hebrew.
+
+Open the game with `?playtest=1` to turn on playtest mode on that phone. The game then keeps a log of what happens on the phone itself, across visits. In Settings, **Send playtest notes** shares it as a text file (WhatsApp, email...) and **Copy playtest notes** copies it. The notes start with a readable summary: time played, each board with its stars, dead ends, restarts, hints, shuffles, undos and taps on blocked tiles, trivia answers, settings changed, and a list of moments worth asking the player about. The full log follows for analysis. Clearing the log takes two taps; `?playtest=0` or the button in Settings turns the mode off.
+
 ## Legal choices
 
 All tile art is original. There are no photos, posters, likenesses, logos or song lyrics. The trivia names films, TV shows and facts in plain text only, and no star appears anywhere. Before launch, have a lawyer take a quick look at the trivia wording.
 
 ## Privacy
 
-Progress is saved in your own browser (`localStorage`). Nothing is sent anywhere; a shared link carries only the board, seed, orientation and how many hints and shuffles were used. For playtests, `window.__events` in the page lists what happened (boards started and cleared with their stars, hints, shuffles, undos, dead ends and how far back they went, restarts, trivia answers, shares, opened friend links).
+Progress is saved in your own browser (`localStorage`). Nothing is sent anywhere; a shared link carries only the board, seed, orientation and how many hints and shuffles were used. In playtest mode the log is kept on the phone too, and leaves it only when the facilitator sends or copies it. It holds game events only: no name, contact details or location. `window.__events` in the page lists what happened (boards started and cleared with their stars, hints, shuffles, undos, dead ends and how far back they went, restarts, trivia answers, shares, opened friend links).
 
 ## Files
 
@@ -80,11 +89,16 @@ Progress is saved in your own browser (`localStorage`). Nothing is sent anywhere
 | `js/engine.js` | Mahjong rules: free tiles, dealing solvable boards (with traps on harder ones), rescue |
 | `js/chess.js` | Chess Night rules: piece moves, capture matching, dealing solvable boards, rescue |
 | `js/puzzle.js` | How hard a deal is, picking deals to match a target, and the solver behind hints and dead ends |
+| `js/endless.js` | The Late Show: a layout, difficulty, name and tiles for any level number |
+| `js/playtest.js` | Turns the playtest log into readable notes |
+| `docs/playtest-kit.md` | The playtest kit for facilitators |
 | `js/art.js` | The tile and piece drawings and the interface icons |
 | `js/app.js` | Screens, drawing boards, play, the daily board, shared links, saving |
 | `tests/engine.test.js` | Mahjong rule tests: layouts, dealing, rescue, finishing every board |
 | `tests/chess.test.js` | Chess rule tests: each piece's moves, dealing, finishing every board |
 | `tests/puzzle.test.js` | Fast pair finders match the rules, trap deals can be cleared, the solver finds ways and dead ends, deal picking steers difficulty |
+| `tests/endless.test.js` | Late Show layouts are sound (even, no overlaps, nothing floating, mirrored), deal, fit a phone, and follow the difficulty runs |
+| `tests/playtest.test.js` | The playtest notes sum up a session and point at moments to ask about |
 | `tests/e2e.cjs` | Plays through the game in a real browser by tapping tiles |
 
 ## Tests

@@ -5,6 +5,8 @@
   var E = window.MNMEngine;
   var CH = window.MNMChess;
   var P = window.MNMPuzzle;
+  var ENDLESS = window.MNMEndless;
+  var PLAYTEST = window.MNMPlaytest;
   var ART = window.MNMArt;
   var C = window.MNMContent;
   var CHAPTERS = C.CHAPTERS;
@@ -27,12 +29,38 @@
     });
   }
 
-  // Playtest log, kept in the page only. Nothing is sent anywhere.
+  // What happened, kept in the page only. Nothing is sent anywhere. In playtest mode the log is
+  // also kept on the phone, so a facilitator can copy it from Settings after the session.
   var events = (window.__events = []);
+  var LOG_KEY = 'movie-night-mahjong.playtest';
+  var LOG_MAX = 5000;
+  var playlog = [];
+  var logTimer = null;
+
   function track(name, data) {
     var e = { event: name, at: new Date().toISOString() };
     if (data) Object.keys(data).forEach(function (k) { e[k] = data[k]; });
     events.push(e);
+    if (save && save.playtest) {
+      playlog.push(e);
+      if (playlog.length > LOG_MAX) playlog.splice(0, playlog.length - LOG_MAX);
+      clearTimeout(logTimer);
+      logTimer = setTimeout(saveLog, 800);
+    }
+  }
+
+  function loadLog() {
+    try {
+      var list = JSON.parse(localStorage.getItem(LOG_KEY) || '[]');
+      playlog = Array.isArray(list) ? list : [];
+    } catch (e) {
+      playlog = [];
+    }
+  }
+
+  function saveLog() {
+    clearTimeout(logTimer);
+    try { localStorage.setItem(LOG_KEY, JSON.stringify(playlog)); } catch (e) { /* storage full or blocked */ }
   }
 
   // ---------- Chapters and boards ----------
@@ -46,10 +74,44 @@
     return chapter.id + '-' + (index + 1);
   }
 
-  // 'drive-in-3' -> the third board of the Drive-In chapter.
+  // The Late Show: endless levels after the story chapters, numbered on from the last story level.
+  // Its boards are made from their number (endless.js), with tiles from every story chapter.
+  var LATE_SHOW = {
+    id: 'late',
+    emblem: 'moon',
+    kicker: 'The Late Show',
+    short: 'Late Show',
+    title: 'The Late Show',
+    mode: 'classic',
+    endless: true,
+    boards: []
+  };
+  var lateCache = {};
+
+  function storyChapters() {
+    return CHAPTERS.filter(function (ch) { return !ch.bonus; });
+  }
+
+  function lateBoard(n) {
+    if (!lateCache[n]) {
+      var faces = [];
+      storyChapters().forEach(function (ch) {
+        ch.boards.forEach(function (b) { b.faces.forEach(function (f) { if (faces.indexOf(f) < 0) faces.push(f); }); });
+      });
+      lateCache[n] = ENDLESS.board(n, faces);
+    }
+    return lateCache[n];
+  }
+
+  // 'drive-in-3' -> the third board of the Drive-In chapter. 'late-7' -> the seventh Late Show level.
   function lookup(key) {
     var m = /^([a-z-]+)-(\d+)$/.exec(key || '');
     if (!m) return null;
+    if (m[1] === LATE_SHOW.id) {
+      var n = Number(m[2]);
+      if (n < 1 || String(n) !== m[2]) return null;
+      return { key: key, chapter: LATE_SHOW, index: n - 1, board: lateBoard(n) };
+    }
     var chapter = chapterById(m[1]);
     var index = Number(m[2]) - 1;
     if (!chapter || !chapter.boards[index]) return null;
@@ -74,7 +136,8 @@
     return UNLOCK_ALL || i === 0 || save.cleared[boardKey(chapter, i)] || save.cleared[boardKey(chapter, i - 1)];
   }
 
-  // The next board on the main path, skipping bonus chapters.
+  // The next board on the main path, skipping bonus chapters. After the story, the Late Show
+  // goes on for ever. A new story chapter comes first, then the player picks up where they were.
   function nextBoard() {
     for (var c = 0; c < CHAPTERS.length; c++) {
       var ch = CHAPTERS[c];
@@ -83,7 +146,9 @@
         if (!save.cleared[boardKey(ch, i)]) return lookup(boardKey(ch, i));
       }
     }
-    return null;
+    for (var n = 1; ; n++) {
+      if (!save.cleared[LATE_SHOW.id + '-' + n]) return lookup(LATE_SHOW.id + '-' + n);
+    }
   }
 
   function newFaces(chapter, index) {
@@ -107,6 +172,8 @@
       seenHard: false,
       seenBlockedTip: false,
       seenReachTip: false,
+      seenLateShow: false,
+      playtest: null,
       games: {},
       daily: {},
       lastPlayed: null,
@@ -140,6 +207,8 @@
     s.seenHard = !!data.seenHard;
     s.seenBlockedTip = !!data.seenBlockedTip;
     s.seenReachTip = !!data.seenReachTip;
+    s.seenLateShow = !!data.seenLateShow;
+    if (data.playtest && typeof data.playtest === 'object') s.playtest = { since: String(data.playtest.since || '') };
     s.stars = plainObject(data.stars);
     s.games = plainObject(data.games);
     s.daily = plainObject(data.daily);
@@ -597,15 +666,25 @@
     ).tiles;
   }
 
-  // Looks for a way to clear the board from where it stands: { solvable, move }.
+  // Looks for a way to clear the board from where it stands: { solvable, move }. A quick search
+  // settles nearly every board; when it can't tell, a longer one runs before falling back to a guess.
   function solveTiles(tiles) {
     var rule = rules();
-    return P.solve(rule.pairs(tiles, game.board), tiles.map(function (t) { return t.present; }), {
+    var pairs = rule.pairs(tiles, game.board);
+    var present = tiles.map(function (t) { return t.present; });
+    var opts = {
       faces: tiles.map(function (t) { return t.face; }),
       allFreeSafe: game.mode === 'classic',
       doomed: rule.doomed(tiles, game.board),
       score: rule.score ? rule.score(tiles) : undefined
-    });
+    };
+    var found = P.solve(pairs, present, opts);
+    if (found.solvable === null) {
+      opts.budget = 30000;
+      opts.restarts = 8;
+      found = P.solve(pairs, present, opts);
+    }
+    return found;
   }
 
   // After a dead end: how many steps back the board could still be cleared. Taking a pair never
@@ -731,6 +810,7 @@
   var clockTimer = null;
 
   function showView(name) {
+    if (name !== view) track('view', { name: name });
     view = name;
     VIEWS.forEach(function (v) { $(v).hidden = v !== name; });
     $('tabbar').hidden = name === 'game';
@@ -761,8 +841,13 @@
     }).length;
   }
 
-  // Boards on the main path are numbered as levels: Chapter 1 is Levels 1-6, Chapter 2 Levels 7-12.
+  // Boards on the main path are numbered as levels: Chapter 1 is Levels 1-6, Chapter 2 Levels 7-12,
+  // and the Late Show carries on from there.
   function levelNumber(key) {
+    var late = /^late-(\d+)$/.exec(key);
+    if (late) {
+      return storyChapters().reduce(function (sum, ch) { return sum + ch.boards.length; }, 0) + Number(late[1]);
+    }
     var n = 0;
     for (var c = 0; c < CHAPTERS.length; c++) {
       var ch = CHAPTERS[c];
@@ -786,8 +871,13 @@
   }
 
   function totalStars() {
+    var seen = {};
     var n = 0;
-    CHAPTERS.forEach(function (ch) { ch.boards.forEach(function (b, i) { n += starsOn(boardKey(ch, i)); }); });
+    Object.keys(save.cleared).concat(Object.keys(save.stars)).forEach(function (k) {
+      if (seen[k] || !(/^late-[1-9]\d*$/.test(k) || lookup(k))) return;
+      seen[k] = true;
+      n += starsOn(k);
+    });
     return n;
   }
 
@@ -799,20 +889,13 @@
   function homePlay() {
     var last = save.lastPlayed && save.games[save.lastPlayed] && lookup(save.lastPlayed);
     var target = last || nextBoard();
-    if (target) {
-      return {
-        label: boardLabel(target),
-        sub: (last ? 'Resume · ' : '') + target.chapter.title + ' · ' + target.board.name,
-        action: 'board:' + target.key,
-        chapter: target.chapter,
-        hard: !!target.board.hard
-      };
-    }
-    if (!save.daily[today()]) {
-      return { label: 'Today’s board', sub: 'Every level is cleared. Here is today’s daily board.', action: 'daily-play', chapter: CHAPTERS[0] };
-    }
-    var chess = chapterById('chess');
-    return { label: 'Chess Night', sub: 'Every level is cleared and today is stamped.', action: 'chapter:chess', chapter: chess };
+    return {
+      label: boardLabel(target),
+      sub: (last ? 'Resume · ' : '') + target.chapter.title + ' · ' + target.board.name,
+      action: 'board:' + target.key,
+      chapter: target.chapter,
+      hard: !!target.board.hard
+    };
   }
 
   function renderHome() {
@@ -909,7 +992,8 @@
     done.hidden = !chapterDone(ch);
     if (!done.hidden) {
       var after = CHAPTERS.filter(function (c) { return c.unlockAfter === ch.id && !c.bonus; })[0];
-      done.textContent = 'You finished this chapter.' + (after ? ' Next up: ' + after.title + '.' : '');
+      done.textContent = 'You finished this chapter.' + (after ? ' Next up: ' + after.title + '.'
+        : ch.bonus ? '' : ' Next up: the Late Show, from the big button on Home.');
     }
     $('chess-howto').hidden = !(ch.mode === 'chess' && unlocked);
 
@@ -982,6 +1066,8 @@
     var sheet = $('sheet');
     sheet.className = 'sheet' + (opts.celebrate ? ' celebrate' : '');
     sheet.innerHTML = html;
+    var title = sheet.querySelector('#sheet-title');
+    track('sheet', { title: title ? title.textContent : '' });
     $('overlay').hidden = false;
     sheet.scrollTop = 0;
     var first = sheet.querySelector('[data-autofocus]') || sheet.querySelector('button, input');
@@ -1118,11 +1204,33 @@
     );
   }
 
+  // Shown once, before the first Late Show level.
+  function showLateShowIntro(found) {
+    openSheet(
+      '<p class="eyebrow">' + esc(boardLabel(found)) + ' · ' + esc(found.board.name) + '</p>' +
+      '<h2 id="sheet-title">Welcome to the Late Show</h2>' +
+      '<div class="new-tiles">' + found.board.faces.slice(0, 3).map(function (f) { return miniTile(f, 'big'); }).join('') + '</div>' +
+      '<p>The story is over, but the show goes on. Every level from here is a brand-new board, as many as you like, with tiles from every chapter.</p>' +
+      '<p>Every fifth level is hard, and every tenth is the hardest of its run.</p>' +
+      '<div class="sheet-actions"><button class="btn btn-primary btn-xl" type="button" data-close data-autofocus>Let’s play</button></div>',
+      {
+        onClose: function () {
+          save.seenLateShow = true;
+          persist();
+        }
+      }
+    );
+  }
+
   function maybeShowIntro() {
     if (!game) return;
     if (game.board.hard && !save.seenHard) { showHardIntro(); return; }
     if (game.spec.kind !== 'chapter') return;
     var found = lookup(game.spec.key);
+    if (found.chapter.endless) {
+      if (!save.seenLateShow) showLateShowIntro(found);
+      return;
+    }
     if (game.mode === 'chess') {
       if (!save.seenChessHowTo) showChessHowTo(true);
       else if (!save.seenIntro[found.key] && found.board.newPieces.length) showPieceIntro(found);
@@ -1164,6 +1272,7 @@
       '<input type="checkbox" id="set-sound"' + (st.sound ? ' checked' : '') + '></label>' +
       (game ? '<button class="btn btn-ghost" type="button" data-go="restart">' + ART.icon('restart') +
         'Start this ' + (game.spec.kind === 'chapter' ? 'level' : 'board') + ' over</button>' : '') +
+      (save.playtest ? playtestBox() : '') +
       '<div class="reset-box">' +
       '<button class="btn btn-danger" type="button" id="reset-start">Start everything over</button>' +
       '<div class="reset-confirm" id="reset-confirm" hidden><p>This clears every cleared board, your album cards and your calendar stamps.</p>' +
@@ -1171,6 +1280,73 @@
       '<button class="btn btn-danger" type="button" id="reset-yes">Start over</button></div></div></div>' +
       '<div class="sheet-actions"><button class="btn btn-primary btn-xl" type="button" data-close>Done</button></div>'
     );
+  }
+
+  // ---------- Playtest mode ----------
+
+  function playtestBox() {
+    return '<div class="playtest-box"><p class="eyebrow">Playtest mode</p>' +
+      '<p>' + plural(playlog.length, 'thing') + ' logged on this phone. Nothing is sent anywhere until you send it.</p>' +
+      '<button class="btn btn-primary" type="button" id="pt-send">Send playtest notes</button>' +
+      '<button class="btn btn-ghost" type="button" id="pt-copy">Copy playtest notes</button>' +
+      '<div class="share-box" id="pt-box" hidden><label for="pt-text">Select everything in this box and copy it:</label>' +
+      '<textarea id="pt-text" rows="5" readonly></textarea></div>' +
+      '<div class="row"><button class="btn btn-ghost" type="button" id="pt-clear">Clear the log</button>' +
+      '<button class="btn btn-ghost" type="button" id="pt-off">Turn playtest mode off</button></div></div>';
+  }
+
+  function describeBoard(key) {
+    var found = lookup(key);
+    if (found) return boardLabel(found) + ' · ' + found.board.name;
+    var day = /^daily-(.+)$/.exec(key);
+    if (day) return 'Daily board, ' + shortDate(day[1]);
+    return key === 'friend' ? 'A friend’s board' : key;
+  }
+
+  function playtestNotes() {
+    saveLog();
+    return PLAYTEST.summary(playlog, describeBoard);
+  }
+
+  function showNotesBox(text) {
+    var box = $('pt-box');
+    box.hidden = false;
+    $('pt-text').value = text;
+    $('pt-text').focus();
+    $('pt-text').select();
+  }
+
+  // Sends the notes as a file through the phone's share sheet (WhatsApp, email...), or downloads it.
+  function sendNotes() {
+    var text = playtestNotes();
+    var name = 'movie-night-playtest-' + today() + '.txt';
+    track('playtest_notes', { how: 'send' });
+    try {
+      var file = new File([text], name, { type: 'text/plain' });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        navigator.share({ files: [file], title: 'Movie Night Mahjong playtest notes' }).catch(function () {});
+        return;
+      }
+    } catch (e) { /* no file sharing here; download instead */ }
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([text], { type: 'text/plain' }));
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    toast('Playtest notes saved to your downloads.');
+  }
+
+  function copyNotes() {
+    var text = playtestNotes();
+    track('playtest_notes', { how: 'copy' });
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(function () {
+        toast('Playtest notes copied. Paste them into a message or email.');
+      }, function () { showNotesBox(text); });
+    } else {
+      showNotesBox(text);
+    }
   }
 
   function applySettings() {
@@ -1242,11 +1418,17 @@
         esc(boardLabel(lookup(nextKey))) + '</button>';
     } else {
       var after = CHAPTERS.filter(function (c) { return c.unlockAfter === ch.id; })[0];
-      actions = '<p class="verdict">You finished ' + esc(ch.kicker) + '!</p>' +
-        (after
-          ? '<p>' + esc(after.kicker) + ', ' + esc(after.title) + ', is now open.</p>' +
-            '<button class="btn btn-primary btn-xl" type="button" data-go="chapter:' + after.id + '" data-autofocus>Open ' + esc(after.kicker) + '</button>'
-          : '<button class="btn btn-primary btn-xl" type="button" data-go="album" data-autofocus>See your album</button>');
+      var upNext = ch.bonus ? null : nextBoard();
+      actions = '<p class="verdict">You finished ' + esc(ch.kicker) + '!</p>';
+      if (after) {
+        actions += '<p>' + esc(after.kicker) + ', ' + esc(after.title) + ', is now open.</p>' +
+          '<button class="btn btn-primary btn-xl" type="button" data-go="chapter:' + after.id + '" data-autofocus>Open ' + esc(after.kicker) + '</button>';
+      } else if (upNext && upNext.chapter.endless) {
+        actions += '<p>The Late Show is now open: a brand-new board every level, as many as you like.</p>' +
+          '<button class="btn btn-primary btn-xl" type="button" data-go="board:' + upNext.key + '" data-autofocus>Play ' + esc(boardLabel(upNext)) + '</button>';
+      } else {
+        actions += '<button class="btn btn-primary btn-xl" type="button" data-go="album" data-autofocus>See your album</button>';
+      }
     }
     actions += '<button class="btn btn-ghost" type="button" data-go="home">Home</button>';
 
@@ -1531,6 +1713,7 @@
       // Out of reach: the piece shakes. Its move dots show where it can go; the first time, a note says why.
       nudge(tileButton(id));
       sound('blocked');
+      track('blocked_tap', { board: game.spec.key });
       if (!save.seenReachTip) {
         save.seenReachTip = true;
         persist();
@@ -1556,6 +1739,7 @@
     if (!E.isFree(game.tiles, id)) {
       nudge(btn);
       sound('blocked');
+      track('blocked_tap', { board: game.spec.key });
       if (!save.seenBlockedTip) {
         save.seenBlockedTip = true;
         persist();
@@ -1630,6 +1814,7 @@
   }
 
   function noneLeft(what) {
+    track('help_out', { board: game.spec.key, what: what });
     toast('No ' + what + ' left on this ' + (game.spec.kind === 'chapter' ? 'level' : 'board') +
       '. Undo is always free, and starting over brings ' + (what === 'hints' ? HINTS : SHUFFLES) + ' fresh ones.');
   }
@@ -1722,15 +1907,37 @@
     setTimeout(function () { showResult(result); }, reducedMotion() ? 0 : 350);
   }
 
+  // A Late Show level has no card: its result shows the stars and moves straight on to the next one.
+  function showLateResult(found, result) {
+    var next = lookup(LATE_SHOW.id + '-' + (found.index + 2));
+    openSheet(
+      '<p class="eyebrow">The Late Show · ' + esc(boardLabel(found)) + ' cleared</p>' +
+      starsRow(result.stars) +
+      '<h2 id="sheet-title">' + (found.board.hard ? 'What a show!' : 'Level cleared!') + '</h2>' +
+      '<p class="question">You cleared ' + esc(found.board.name) + ' ' + esc(helpText(result)) + '.</p>' +
+      (starsOn(found.key) < 3 ? '<p class="star-tip">Clear it with no hints or shuffles for 3 stars.</p>' : '') +
+      (next.board.hard ? '<p>Next up is a hard level.</p>' : '') +
+      '<div class="sheet-actions"><button class="btn btn-primary btn-xl" type="button" data-go="board:' + next.key + '" data-autofocus>Play ' +
+      esc(boardLabel(next)) + '</button><button class="btn btn-ghost" type="button" data-go="home">Home</button></div>' +
+      shareBox(result, 'Send this board to a friend'),
+      { celebrate: true, onClose: function () { showView('home'); } }
+    );
+  }
+
   function showResult(result) {
-    if (result.spec.kind === 'chapter') showTrivia(lookup(result.spec.key), result);
+    var found = result.spec.kind === 'chapter' && lookup(result.spec.key);
+    if (found && found.chapter.endless) showLateResult(found, result);
+    else if (found) showTrivia(found, result);
     else if (result.spec.kind === 'daily') showDailyResult(result, result.spec.key.slice(6));
     else if (result.spec.kind === 'friend') showFriendResult(result);
   }
 
   function leaveGame(to) {
     clearHint();
-    if (game) persist();
+    if (game) {
+      track('board_leave', { board: game.spec.key, tilesLeft: E.remaining(game.tiles), moves: game.moves });
+      persist();
+    }
     game = null;
     showView(to || 'home');
   }
@@ -1752,7 +1959,7 @@
       var key = action.slice(6);
       var found = lookup(key);
       if (!found) return;
-      save.tab = found.chapter.id;
+      if (!found.chapter.endless) save.tab = found.chapter.id;
       startGame({ kind: 'chapter', key: key });
     }
   }
@@ -1853,10 +2060,33 @@
       }
       if (t.id === 'reset-start') { $('reset-confirm').hidden = false; t.hidden = true; $('reset-cancel').focus(); }
       if (t.id === 'reset-cancel') { $('reset-confirm').hidden = true; $('reset-start').hidden = false; $('reset-start').focus(); }
+      if (t.id === 'pt-send') sendNotes();
+      if (t.id === 'pt-copy') copyNotes();
+      if (t.id === 'pt-clear') {
+        // Two taps, so a stray one never loses a session's notes.
+        if (t.dataset.armed) {
+          playlog = [];
+          saveLog();
+          t.textContent = 'Log cleared';
+          t.disabled = true;
+        } else {
+          t.dataset.armed = '1';
+          t.textContent = 'Tap again to clear';
+        }
+      }
+      if (t.id === 'pt-off') {
+        save.playtest = null;
+        persist();
+        sheetOnClose = null;
+        closeSheet();
+        toast('Playtest mode is off. The log stays on this phone until you clear it.');
+      }
       if (t.id === 'reset-yes') {
         var settings = save.settings;
+        var playtest = save.playtest;
         save = defaultSave();
         save.settings = settings;
+        save.playtest = playtest;
         save.seenHowTo = true;
         save.seenBlockedTip = true;
         save.seenReachTip = true;
@@ -1874,6 +2104,9 @@
       if (t.id === 'set-dim') save.settings.dimBlocked = t.checked;
       if (t.id === 'set-match') save.settings.showMatch = t.checked;
       if (t.id === 'set-sound') save.settings.sound = t.checked;
+      if (t.name === 'text-size' || /^set-/.test(t.id)) {
+        track('setting', { name: t.name === 'text-size' ? 'text size' : t.id.slice(4), value: t.name === 'text-size' ? t.value : t.checked });
+      }
       applySettings();
       persist();
     });
@@ -1886,7 +2119,10 @@
 
     if (window.ResizeObserver) new ResizeObserver(function () { layoutBoard(); }).observe($('board-wrap'));
     else window.addEventListener('resize', layoutBoard);
-    window.addEventListener('pagehide', function () { if (game) persist(); });
+    window.addEventListener('pagehide', function () {
+      if (game) persist();
+      if (save.playtest) saveLog();
+    });
     window.addEventListener('resize', keepPortrait);
     window.addEventListener('orientationchange', keepPortrait);
     if (sidewaysPhone.addEventListener) sidewaysPhone.addEventListener('change', keepPortrait);
@@ -1898,6 +2134,19 @@
     lockPortrait();
     save = data && data.save ? normalize(data.save) : loadSave();
     if (TEST && params.has('fresh')) save = defaultSave();
+    // ?playtest=1 turns playtest mode on for this phone; ?playtest=0 turns it off.
+    if (params.get('playtest') === '1' && !save.playtest) save.playtest = { since: new Date().toISOString() };
+    if (params.get('playtest') === '0') save.playtest = null;
+    if (save.playtest) {
+      loadLog();
+      persist();
+      track('session', {
+        w: Math.round(parseFloat(document.documentElement.style.getPropertyValue('--app-w'))),
+        h: Math.round(parseFloat(document.documentElement.style.getPropertyValue('--app-h'))),
+        turned: document.documentElement.hasAttribute('data-turned'),
+        text: save.settings.textSize
+      });
+    }
     applySettings();
     showView('home');
     var link = readFriendLink();

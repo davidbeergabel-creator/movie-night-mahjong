@@ -999,6 +999,9 @@ button { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent
 .switch input:checked { background: var(--mint); }
 .switch input:checked::before { transform: translateX(1.5rem); }
 .reset-box { display: grid; gap: 10px; padding-top: 6px; border-top: 2px solid var(--sky-3); }
+.playtest-box { display: grid; gap: 10px; padding-top: 6px; border-top: 2px solid var(--sky-3); }
+.playtest-box .row { display: flex; flex-wrap: wrap; gap: 10px; }
+.playtest-box .row .btn { flex: 1 1 10rem; }
 .reset-confirm { display: grid; gap: 10px; }
 .reset-confirm .row { display: flex; flex-wrap: wrap; gap: 10px; }
 .reset-confirm .row .btn { flex: 1 1 10rem; }
