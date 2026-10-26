@@ -706,13 +706,14 @@
 
   // ---------- Toast ----------
 
+  // Stays long enough to read, and goes away as soon as the player taps a tile.
   var toastTimer = null;
   function toast(msg) {
     var el = $('toast');
     el.textContent = msg;
     el.classList.add('show');
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(function () { el.classList.remove('show'); }, 4000);
+    toastTimer = setTimeout(function () { el.classList.remove('show'); }, Math.min(6000, 1800 + msg.length * 45));
   }
 
   function hideToast() {
@@ -1198,12 +1199,19 @@
       starsRow(result.stars) +
       '<h2 id="sheet-title">' + esc(found.chapter.cardTitle || 'Do you remember?') + '</h2>' + cardArt(found) +
       '<div id="quiz" class="reveal"><p class="question">' + esc(tv.q) + '</p>' +
-      '<div class="answers">' + tv.options.map(function (o, i) {
-        return '<button class="answer" type="button" data-answer="' + i + '">' + esc(o) + '</button>';
+      '<div class="answers">' + answerOrder(tv).map(function (i) {
+        return '<button class="answer" type="button" data-answer="' + i + '">' + esc(tv.options[i]) + '</button>';
       }).join('') + '</div></div>' +
       '<div class="reveal" id="reveal" hidden></div>',
       { celebrate: true, locked: true, onClose: function () { showView('home'); } }
     );
+  }
+
+  // Answers come in a new order each time, so the right one isn't always in the same place.
+  // Number scales (ordered: true) stay smallest to largest.
+  function answerOrder(tv) {
+    var order = tv.options.map(function (o, i) { return i; });
+    return tv.ordered ? order : E.shuffle(order, Math.random);
   }
 
   function answerTrivia(choice) {
@@ -1215,7 +1223,8 @@
     persist();
     track('trivia_answer', { board: found.key, correct: right });
 
-    $('sheet').querySelectorAll('.answer').forEach(function (btn, i) {
+    $('sheet').querySelectorAll('.answer').forEach(function (btn) {
+      var i = Number(btn.dataset.answer);
       btn.disabled = true;
       if (i === tv.answer) btn.classList.add('right');
       else if (i === choice) btn.classList.add('wrong');
@@ -1515,9 +1524,9 @@
         matchPair(sel, id);
         return;
       }
+      // Out of reach: the piece shakes. Its move dots already show where it can go.
       nudge(tileButton(id));
       sound('blocked');
-      toast('That ' + C.FACES[t.face].toLowerCase() + ' is out of reach. ' + C.PIECE_RULES[t.face]);
       return;
     } else {
       game.selected = id;
@@ -1526,21 +1535,18 @@
     render();
   }
 
-  var blockedTips = 0;
   function onTileTap(id) {
     if (!game || game.busy) return;
     var t = game.tiles[id];
     if (!t || !t.present) return;
     clearHint();
+    hideToast();
     if (game.mode === 'chess') { onChessTap(id); return; }
     var btn = tileButton(id);
+    // A blocked tile just shakes, with no message in the way.
     if (!E.isFree(game.tiles, id)) {
       nudge(btn);
       sound('blocked');
-      if (blockedTips < 3 || !save.settings.dimBlocked) {
-        blockedTips++;
-        toast('That tile is blocked. Pick one with nothing on top and an open left or right side.');
-      }
       return;
     }
     if (game.selected === id) {
@@ -1898,6 +1904,7 @@
       chess: CH,
       matches: function () { return game ? currentMatches() : []; },
       solve: function () { return game ? solveTiles(game.tiles) : null; },
+      answerOrder: answerOrder,
       tileButton: tileButton
     };
   }

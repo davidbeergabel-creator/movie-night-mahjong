@@ -27,7 +27,7 @@ The movie chapters are numbered as one run of levels: Chapter 1 is Levels 1–6 
 | 2 · Rock ’n’ Roll Diner | Booth for Two, Counter Stools, Jukebox Corner, Malt Shop, Sock Hop, Last Dance | 26–64 | After Chapter 1 |
 | Bonus · Chess Night | Castle Walls, Bishop’s Path, Knight Moves, Royal Court, The Queen Arrives, Checkmate | 16–36 pieces | After Chapter 1 |
 
-- **Chapters.** Each board opens the next. A board's new tiles are introduced before you play it. Clearing a board opens its card ("Do you remember?" for the movie chapters, "Did you know?" for chess). The card goes into the album whether you answer right or wrong.
+- **Chapters.** Each board opens the next. A board's new tiles are introduced before you play it. Clearing a board opens its card ("Do you remember?" for the movie chapters, "Did you know?" for chess). The card goes into the album whether you answer right or wrong. The answers come in a new order each time; questions about numbers keep them smallest to largest.
 - **Chess Night.** Every tile is a chess piece, and two matching pieces clear when one could capture the other with its chess move. Tap a piece to see where it can go: dots mark the squares it can reach, and a ring marks a twin it can capture. Each board introduces one piece with a small diagram, so you don't need to know chess.
 - **Daily board.** Everyone gets the same board on the same day; the date picks the layout, the tiles and the deal. Clearing it stamps a calendar. There's no streak to lose. The daily card appears once you've cleared your first board.
 - **Send a board to a friend.** After clearing a board, you can share a link. It carries the board, its seed, its orientation and how many hints and shuffles you used, so your friend gets the very same tiles. Afterwards they see how their stars compare and can send it back. Phones open their own share sheet; elsewhere the message is copied.
@@ -56,7 +56,7 @@ The first version never let you lose: a dead end reshuffled itself, and help was
 The design follows the research on women over 55, the core mahjong solitaire audience:
 
 - **Readable tiles.** There are 30 original drawings (24 tiles and 6 chess pieces), each with its own color *and* shape, so no two are told apart by color alone. The board picks whichever way round (wide or tall) gives the biggest tiles on the screen. On a 390px phone, tiles are 60–85px wide, and a phone held sideways gets the same portrait-sized tiles.
-- **Nothing to remember.** Tiles you can't pick yet are darkened, which can be turned off. An optional setting points out the matching tile when you pick one. In Chess Night, a piece's moves are always shown when you pick it.
+- **Nothing to remember.** Tiles you can't pick yet are darkened, which can be turned off. Tapping one just makes it shake, with no message in the way, and any message goes away as soon as you tap a tile. An optional setting points out the matching tile when you pick one. In Chess Night, a piece's moves are always shown when you pick it.
 - **Challenging, but never a trap.** There's no timer and Undo is unlimited. Every board is dealt so it can be cleared, a dead end tells you how far back to go, and Level 1 is gentle. A shuffle always leaves a board that can be cleared; if the tiles can't be cleared where they sit (one tile stuck on top of its twin), the last tiles move to fresh spots.
 - **Comfort settings.** Three text sizes and a sound switch. Animations stop when the device asks for reduced motion.
 - **Something to complete.** Album cards, stars, chapter tickets and calendar stamps.

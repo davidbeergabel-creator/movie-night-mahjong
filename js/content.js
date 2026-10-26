@@ -2,6 +2,7 @@
  * Layout blocks are [x, y, cols, rows, layer] in half-tile units (see engine.js).
  * difficulty is how often a player who takes any pair at random would get stuck (0 to 1); each
  * deal is picked to come close to it. hard marks the Hard levels, which get a warning and tips.
+ * Trivia answers are shown in a random order; ordered: true keeps a number scale smallest to largest.
  * Trivia names films and facts in text only. No photos, posters, likenesses or lyrics.
  */
 (function (root) {
@@ -83,6 +84,7 @@
         trivia: {
           q: 'At the height of the craze, around 1958, about how many drive-ins were there in the US?',
           options: ['About 400', 'About 1,500', 'About 4,000', 'About 12,000'],
+          ordered: true,
           answer: 2,
           fact: 'There were more than 4,000 drive-ins in the late 1950s. Today only a few hundred are still open.'
         }
@@ -126,6 +128,7 @@
         trivia: {
           q: 'In Back to the Future (1985), how fast does the DeLorean have to go to travel through time?',
           options: ['55 miles per hour', '88 miles per hour', '99 miles per hour', '121 miles per hour'],
+          ordered: true,
           answer: 1,
           fact: 'It also needs 1.21 gigawatts of power. Doc Brown first gets it from plutonium, and later from a bolt of lightning.'
         }
@@ -183,8 +186,9 @@
         cardColor: 'bulb',
         trivia: {
           q: 'Singles on a 1950s jukebox played at which speed?',
-          options: ['33⅓ rpm', '45 rpm', '78 rpm', '16 rpm'],
-          answer: 1,
+          options: ['16 rpm', '33⅓ rpm', '45 rpm', '78 rpm'],
+          ordered: true,
+          answer: 2,
           fact: 'RCA Victor brought out the 7-inch 45 rpm single in 1949, and jukeboxes soon switched to it.'
         }
       },

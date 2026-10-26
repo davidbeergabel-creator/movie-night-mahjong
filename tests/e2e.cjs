@@ -68,6 +68,7 @@ async function answerTrivia(page, right) {
   const correct = await page.evaluate(() => window.__mnm.trivia.found.board.trivia.answer);
   const choice = right ? correct : (correct + 1) % 4;
   await page.click(`[data-answer="${choice}"]`);
+  assert.ok(await page.$eval(`[data-answer="${correct}"]`, (el) => el.classList.contains('right')), 'the right answer lights up');
   await page.waitForSelector('#reveal:not([hidden])');
   assert.ok(await page.isHidden('#quiz'), 'the answers make way for the result');
   const verdict = await page.textContent('#reveal .verdict');
@@ -149,7 +150,7 @@ async function openBoard(page, key) {
   await shot(page, '03-board-1');
   const firstDeal = await deal(page);
 
-  // A blocked tile shakes and explains itself.
+  // A blocked tile just shakes: no message covers the board.
   const blocked = await page.evaluate(() => {
     const g = window.__mnm.game;
     const free = new Set(window.__mnm.engine.freeTileIds(g.tiles));
@@ -158,8 +159,8 @@ async function openBoard(page, key) {
   });
   assert.notStrictEqual(blocked, null);
   await page.click(`#board .tile[data-id="${blocked}"]`, { force: true });
-  await page.waitForSelector('#toast.show');
-  assert.match(await page.textContent('#toast'), /blocked/);
+  assert.ok(await page.$eval(`#board .tile[data-id="${blocked}"]`, (el) => el.classList.contains('nudge')));
+  assert.ok(!(await page.isVisible('#toast.show')), 'no message for a blocked tile');
 
   // Undo puts a pair back.
   const before = await tilesLeft(page);
@@ -462,8 +463,8 @@ async function openBoard(page, key) {
   assert.ok(await page.$eval(`#board .tile[data-id="${chessCheck.near}"]`, (el) => el.classList.contains('match')));
   await shot(page, '12e-chess-selected');
   await page.click(`#board .tile[data-id="${chessCheck.far}"]`);
-  await page.waitForSelector('#toast.show');
-  assert.match(await page.textContent('#toast'), /out of reach/);
+  assert.ok(await page.$eval(`#board .tile[data-id="${chessCheck.far}"]`, (el) => el.classList.contains('nudge')), 'a twin out of reach shakes');
+  assert.ok(!(await page.isVisible('#toast.show')), 'no message for a twin out of reach');
   const piecesBefore = await tilesLeft(page);
   await page.click(`#board .tile[data-id="${chessCheck.near}"]`);
   await waitIdle(page);
@@ -523,6 +524,22 @@ async function openBoard(page, key) {
   assert.strictEqual(await turned.evaluate(() => window.__mnm.engine.remaining(window.__mnm.game.tiles)), 14, 'taps land on the turned board');
   await shot(turned, '14-sideways-board');
   await sideways.close();
+
+  // Trivia answers come in a new order each time, except number scales, which stay in order.
+  const orders = await page.evaluate(() => {
+    const C = window.MNMContent.CHAPTERS;
+    const free = C[0].boards[0].trivia;
+    const scale = C.flatMap((c) => c.boards).find((b) => b.trivia.ordered).trivia;
+    const runs = Array.from({ length: 40 }, () => window.__mnm.answerOrder(free));
+    return {
+      perms: runs.every((o) => o.slice().sort().join() === '0,1,2,3'),
+      rightFirst: runs.filter((o) => o[0] === free.answer).length,
+      scale: window.__mnm.answerOrder(scale).join()
+    };
+  });
+  assert.ok(orders.perms, 'every answer shows once');
+  assert.ok(orders.rightFirst < 25, `the right answer came first ${orders.rightFirst} times out of 40`);
+  assert.strictEqual(orders.scale, '0,1,2,3');
 
   assert.deepStrictEqual(errors, [], 'no page errors');
   await browser.close();
