@@ -1,15 +1,74 @@
 {
+  "id": "./",
   "name": "Movie Night Mahjong",
   "short_name": "Movie Night",
-  "description": "A relaxing mahjong solitaire with big, clear tiles and a movie night theme.",
+  "description": "Mahjong solitaire with big, clear tiles, a movie-night theme, real puzzles and no timer.",
+  "lang": "en",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#121a3a",
   "theme_color": "#121a3a",
+  "categories": [
+    "games",
+    "entertainment"
+  ],
   "icons": [
-    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
-    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "store/play/phone-1.jpg",
+      "sizes": "1080x1920",
+      "type": "image/jpeg",
+      "form_factor": "narrow",
+      "label": "Big, clear tiles and no timer"
+    },
+    {
+      "src": "store/play/phone-2.jpg",
+      "sizes": "1080x1920",
+      "type": "image/jpeg",
+      "form_factor": "narrow",
+      "label": "A movie memory after every level"
+    },
+    {
+      "src": "store/play/phone-3.jpg",
+      "sizes": "1080x1920",
+      "type": "image/jpeg",
+      "form_factor": "narrow",
+      "label": "Real puzzles with gentle hints"
+    },
+    {
+      "src": "store/play/phone-4.jpg",
+      "sizes": "1080x1920",
+      "type": "image/jpeg",
+      "form_factor": "narrow",
+      "label": "Three chapters, then endless levels"
+    },
+    {
+      "src": "store/play/phone-5.jpg",
+      "sizes": "1080x1920",
+      "type": "image/jpeg",
+      "form_factor": "narrow",
+      "label": "A new board every day"
+    }
   ]
 }

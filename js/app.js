@@ -780,6 +780,16 @@
     layoutBoard();
   }
 
+  // On the real site the game keeps working offline once opened (sw.js). A single-file copy of
+  // the page, which has no manifest link and no files beside it, skips this.
+  function workOffline() {
+    if (!('serviceWorker' in navigator) || !window.isSecureContext || location.protocol === 'file:') return;
+    if (!document.querySelector('link[rel="manifest"]')) return;
+    window.addEventListener('load', function () {
+      navigator.serviceWorker.register('sw.js').catch(function () { /* online play still works */ });
+    });
+  }
+
   function lockPortrait() {
     // Works in an installed app on Android; elsewhere the browser says no and keepPortrait() covers it.
     try {
@@ -1278,7 +1288,8 @@
       '<div class="reset-confirm" id="reset-confirm" hidden><p>This clears every cleared board, your album cards and your calendar stamps.</p>' +
       '<div class="row"><button class="btn btn-ghost" type="button" id="reset-cancel">Keep my progress</button>' +
       '<button class="btn btn-danger" type="button" id="reset-yes">Start over</button></div></div></div>' +
-      '<div class="sheet-actions"><button class="btn btn-primary btn-xl" type="button" data-close>Done</button></div>'
+      '<div class="sheet-actions"><button class="btn btn-primary btn-xl" type="button" data-close>Done</button></div>' +
+      '<p class="sheet-foot"><a href="' + SITE + 'privacy.html" target="_blank" rel="noopener">Privacy policy</a></p>'
     );
   }
 
@@ -2132,6 +2143,7 @@
   function boot(data) {
     keepPortrait();
     lockPortrait();
+    workOffline();
     save = data && data.save ? normalize(data.save) : loadSave();
     if (TEST && params.has('fresh')) save = defaultSave();
     // ?playtest=1 turns playtest mode on for this phone; ?playtest=0 turns it off.

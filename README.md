@@ -73,13 +73,21 @@ The design follows the research on women over 55, the core mahjong solitaire aud
 
 Open the game with `?playtest=1` to turn on playtest mode on that phone. The game then keeps a log of what happens on the phone itself, across visits. In Settings, **Send playtest notes** shares it as a text file (WhatsApp, email...) and **Copy playtest notes** copies it. The notes start with a readable summary: time played, each board with its stars, dead ends, restarts, hints, shuffles, undos and taps on blocked tiles, trivia answers, settings changed, and a list of moments worth asking the player about. The full log follows for analysis. Clearing the log takes two taps; `?playtest=0` or the button in Settings turns the mode off.
 
+## Installing and the app stores
+
+The game installs from the browser (Add to Home Screen) as a portrait app with its own icon, and once opened it plays offline: `sw.js` keeps a copy of every file and serves it when the network is slow or missing. The typefaces ship with the game, so it makes no outside requests at all.
+
+[`docs/app-stores.md`](docs/app-stores.md) is the step-by-step guide to Google Play (packaged with PWABuilder as a Trusted Web Activity) and the App Store, with the listing texts ready to paste; the explanations are in Hebrew. What it needs from the owner: the store accounts and fees, a public contact address, the signing key kept safe, and a `davidbeergabel-creator.github.io` repository for the Digital Asset Links file.
+
+The store images in `store/` (icons, Google Play feature graphic, phone and iPhone screenshots with headlines) are drawn from the game itself by `npm run store-assets`, which also redraws the icons in `icons/`. The privacy policy is [`privacy.html`](privacy.html), linked from Settings.
+
 ## Legal choices
 
 All tile art is original. There are no photos, posters, likenesses, logos or song lyrics. The trivia names films, TV shows and facts in plain text only, and no star appears anywhere. Before launch, have a lawyer take a quick look at the trivia wording.
 
 ## Privacy
 
-Progress is saved in your own browser (`localStorage`). Nothing is sent anywhere; a shared link carries only the board, seed, orientation and how many hints and shuffles were used. In playtest mode the log is kept on the phone too, and leaves it only when the facilitator sends or copies it. It holds game events only: no name, contact details or location. `window.__events` in the page lists what happened (boards started and cleared with their stars, hints, shuffles, undos, dead ends and how far back they went, restarts, trivia answers, shares, opened friend links).
+Progress is saved in your own browser (`localStorage`). Nothing is sent anywhere, and the game loads nothing from other servers; a shared link carries only the board, seed, orientation and how many hints and shuffles were used. In playtest mode the log is kept on the phone too, and leaves it only when the facilitator sends or copies it. It holds game events only: no name, contact details or location. `window.__events` in the page lists what happened (boards started and cleared with their stars, hints, shuffles, undos, dead ends and how far back they went, restarts, trivia answers, shares, opened friend links).
 
 ## Files
 
@@ -87,6 +95,10 @@ Progress is saved in your own browser (`localStorage`). Nothing is sent anywhere
 |---|---|
 | `index.html` | The page: program, board, album |
 | `css/style.css` | All styles |
+| `fonts/` | Atkinson Hyperlegible and Bungee, with their SIL Open Font Licenses |
+| `sw.js` | Keeps the game working offline |
+| `manifest.webmanifest`, `icons/` | What an installed copy is called and looks like |
+| `privacy.html` | The privacy policy |
 | `js/content.js` | Chapters: board layouts and grids, which tiles each board uses, trivia, how chess pieces move |
 | `js/engine.js` | Mahjong rules: free tiles, dealing solvable boards (with traps on harder ones), rescue |
 | `js/chess.js` | Chess Night rules: piece moves, capture matching, dealing solvable boards, rescue |
@@ -94,6 +106,8 @@ Progress is saved in your own browser (`localStorage`). Nothing is sent anywhere
 | `js/endless.js` | The Late Show: a layout, difficulty, name and tiles for any level number |
 | `js/playtest.js` | Turns the playtest log into readable notes |
 | `docs/playtest-kit.md` | The playtest kit for facilitators |
+| `docs/app-stores.md` | How to publish to Google Play and the App Store, with the listing texts |
+| `tools/store-assets.cjs`, `store/` | Draws the icons and store images from the game, and the images themselves |
 | `js/art.js` | The tile and piece drawings and the interface icons |
 | `js/app.js` | Screens, drawing boards, play, the daily board, shared links, saving |
 | `tests/engine.test.js` | Mahjong rule tests: layouts, dealing, rescue, finishing every board |
@@ -102,12 +116,15 @@ Progress is saved in your own browser (`localStorage`). Nothing is sent anywhere
 | `tests/endless.test.js` | Late Show layouts are sound (even, no overlaps, nothing floating, mirrored), deal, fit a phone, and follow the difficulty runs |
 | `tests/playtest.test.js` | The playtest notes sum up a session and point at moments to ask about |
 | `tests/e2e.cjs` | Plays through the game in a real browser by tapping tiles |
+| `tests/offline.cjs` | Opens the game once, then checks it still plays with the network off |
 
 ## Tests
 
 ```
 npm test          # rules (Node 18+)
 npm run e2e       # the game in Chromium (needs Playwright)
+npm run offline   # the game keeps working offline (serves the folder on localhost)
+npm run store-assets   # redraw the icons and store images
 ```
 
 Add `?test=1` to the URL to unlock every board, and `&locks=1` to keep the locks on. Add `&seed=123` to get the same deal every time, `&fresh=1` to start from an empty save, and `&today=2026-10-22` to choose the daily board's date.

@@ -1,6 +1,11 @@
 /* Layout: every screen fills the phone exactly, with no page scroll. Home is a lit marquee,
    a round drive-in sign and one big Level button; Daily, Chapters and Album are tabs; the board
    sits between a counter bar and three round tools. One dark look: the drive-in at night. */
+/* The two typefaces ship with the game (SIL Open Font License, see fonts/), so it makes no outside requests. */
+@font-face { font-family: "Atkinson Hyperlegible"; font-style: normal; font-weight: 400; font-display: swap; src: url("../fonts/atkinson-hyperlegible-400.woff2") format("woff2"); }
+@font-face { font-family: "Atkinson Hyperlegible"; font-style: normal; font-weight: 700; font-display: swap; src: url("../fonts/atkinson-hyperlegible-700.woff2") format("woff2"); }
+@font-face { font-family: "Bungee"; font-style: normal; font-weight: 400; font-display: swap; src: url("../fonts/bungee-400.woff2") format("woff2"); }
+
 :root {
   color-scheme: dark;
   --sky: #121a3a;
@@ -858,6 +863,8 @@ button { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent
 }
 .sheet p { margin: 0; }
 .sheet-actions { display: grid; gap: 10px; }
+.sheet-foot { text-align: center; font-size: 0.95rem; }
+.sheet-foot a { color: var(--muted); }
 .share { display: grid; gap: 10px; }
 .share-box { display: grid; gap: 6px; }
 .share-box label { color: var(--muted); font-size: 0.95rem; }
